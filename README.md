@@ -28,7 +28,7 @@ Pro-Prompt generates structured, expert-level instruction manifests from task de
 **macOS / Linux:**
 
 ```bash
-git clone https://github.com/<your-org>/pro-prompt.git
+git clone https://github.com/TFD-42/Pro-Prompt.git
 cd pro-prompt
 chmod +x install.sh
 ./install.sh
@@ -37,7 +37,7 @@ chmod +x install.sh
 **Windows (PowerShell):**
 
 ```powershell
-git clone https://github.com/<your-org>/pro-prompt.git
+git clone https://github.com/TFD-42/Pro-Prompt.git
 cd pro-prompt
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\install.ps1
