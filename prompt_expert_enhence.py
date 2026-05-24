@@ -2,6 +2,8 @@
 """
 Manifest Generator – CLI Tool for Reproducible Instruction Manifests via Ollama.
 
+Version: 2.1.0
+
 Usage:
     manifest generate <task> [--topic TOPIC ...] [--model MODEL] [options]
     manifest parallel <task> [--topic TOPIC ...] [options]
