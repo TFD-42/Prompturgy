@@ -8,6 +8,8 @@
 
 **Generate structured, expert-level instruction manifests from any task description using local LLMs via Ollama — no cloud API keys required.**
 
+<img width="1983" height="793" alt="llm" src="https://github.com/user-attachments/assets/4623620d-df38-41ae-834e-3fa239f22e6f" />
+
 Pro-Prompt is a CLI tool and interactive launcher that transforms task descriptions into comprehensive, reproducible instruction manifests. It applies **173 prompt engineering techniques** across **15 categories** (Chain-of-Thought, Tree-of-Thought, ReAct, MECE decomposition, red teaming, and more) to force exhaustive, high-quality outputs from any Ollama-compatible model. Supports single-model streaming, dual-model parallel generation with split-screen display, and expert synthesis that merges two outputs into a superior unified document.
 
 ---
