@@ -2,15 +2,25 @@
 """
 Manifest Generator – CLI Tool for Reproducible Instruction Manifests via Ollama.
 
-Version: 2.1.0
+Version: 2.2.0
 
 Usage:
-    manifest generate <task> [--topic TOPIC ...] [--model MODEL] [options]
-    manifest parallel <task> [--topic TOPIC ...] [options]
-    manifest synthesis <task> <file_a> <file_b> [options]
-    manifest full <task> [--topic TOPIC ...] [options]
-    manifest memory view
-    manifest memory clear
+    python prompt_expert_enhance.py                    (interactive menu)
+    python prompt_expert_enhance.py generate <task> [options]
+    python prompt_expert_enhance.py parallel <task> [options]
+    python prompt_expert_enhance.py synthesis <task> <file_a> <file_b> [options]
+    python prompt_expert_enhance.py full <task> [options]
+    python prompt_expert_enhance.py memory view
+    python prompt_expert_enhance.py memory clear
+
+Metacommands — prefix your task with /slash modifiers:
+    /expert /humain /enfant /sceptique /mentor /cynique /serieux /humour
+    /tableau /json /markdown /points /checklist
+    /resume /concis /detaille /limite:N
+    /etapes /exemple /analogie /pourcontre /debat /reverse /iterer /ameliorer
+    /precision /hypotheses /sources /risques /decision /verification /audit
+    /raisonnement /minimal /silence /urgent /questionner /historique /futuriste
+    /niveau:debutant|intermediaire|expert   /confiance   /comparatif
 
 Commands:
     generate       Single model manifest generation (multi‑topic optional).
@@ -49,7 +59,7 @@ BASE_DIR = Path(__file__).resolve().parent
 MEMORY_DIR = BASE_DIR / "memory"
 OUTPUT_DIR = BASE_DIR / "outputs"
 MEMORY_FILE = MEMORY_DIR / "sessions.json"
-METHODOLOGY_FILE = BASE_DIR / "prompte_expert_methodologie.json"
+METHODOLOGY_FILE = BASE_DIR / "prompt_expert_methodology.json"
 DEFAULT_MODEL_A = "llama3:latest"
 DEFAULT_MODEL_B = "qwen2.5:7b"
 DEFAULT_SYNTH_MODEL = "qwen2.5:7b"
@@ -843,6 +853,9 @@ def build_full_prompt(
     techniques: Optional[List[int]] = None,
     use_web: bool = True,
 ) -> str:
+    # Extract /slash metacommands from the raw input
+    clean_input, meta_block = parse_metacommands(user_input)
+
     topic_block = ""
     if topic.strip():
         topic_block = (
@@ -851,15 +864,150 @@ def build_full_prompt(
             "Treat this topic as the dominant angle, going to maximum depth."
         )
     memory_block = build_memory_context() if use_memory else ""
-    web_block = build_web_context(user_input, topic) if use_web else ""
+    web_block = build_web_context(clean_input, topic) if use_web else ""
     techniques_block = get_technique_boost(techniques or DEFAULT_TECHNIQUES)
+
+    # meta_block injected right after techniques, before USER INPUT delimiter
+    combined_prefix = techniques_block
+    if meta_block:
+        combined_prefix = techniques_block + "\n" + meta_block
+
     return (META_PROMPT
-            .replace("{USER_INPUT}", user_input.strip())
+            .replace("{USER_INPUT}", clean_input.strip())
             .replace("{TOPIC_FOCUS}", topic_block)
             .replace("{MEMORY_CONTEXT}", memory_block)
             .replace("{WEB_CONTEXT}", web_block)
             .replace("---\n\n## USER INPUT",
-                     f"{techniques_block}\n\n---\n\n## USER INPUT"))
+                     f"{combined_prefix}\n\n---\n\n## USER INPUT"))
+
+
+# ----------------------------------------------------------------------
+# Metacommand system — /slash modifiers applied at prompt build time
+# ----------------------------------------------------------------------
+
+METACOMMANDS: Dict[str, str] = {
+    # ── Persona ──────────────────────────────────────────────────────
+    "/expert":       "You are a certified senior expert with 20+ years in this domain. Write with authority and precision. Avoid generalities and hedging.",
+    "/humain":       "Use a warm, conversational tone. Write as a knowledgeable friend, not a textbook.",
+    "/enfant":       "Explain as if to a curious 10-year-old. Short sentences, simple words, concrete analogies only.",
+    "/philosophe":   "Approach from a philosophical angle. Question assumptions, explore underlying principles, reference relevant frameworks.",
+    "/sceptique":    "Adopt a critical, skeptical stance. Challenge every claim. Identify weaknesses, counterarguments, and what remains uncertain.",
+    "/mentor":       "Take the role of a supportive mentor. Acknowledge difficulty, give practical guidance, encourage clear next steps.",
+    "/cynique":      "Use dry, sardonic wit. See through optimism. Be realistic without being unhelpful.",
+    "/serieux":      "Strictly formal and professional. No humor, no colloquialisms. Dense, structured, precise.",
+    "/humour":       "Inject genuine humor throughout: puns, observations, light irony. Make the content memorable.",
+    "/emphatique":   "Acknowledge the difficulty or importance of the topic first. Show understanding, then provide substance.",
+    "/psychologue":  "Analyze cognitive and behavioral dimensions. Identify patterns and biases — do not invent motivations.",
+    "/avocat":       "Build the strongest possible logical defense of the position. State clearly that this is advocacy, not objective truth.",
+    "/journaliste":  "Write with journalistic rigor. Use real sources or clearly labeled hypothetical references only. No invented citations.",
+    # ── Format ───────────────────────────────────────────────────────
+    "/tableau":      "Structure the entire response as one or more tables. Rows and columns must be logically organized.",
+    "/json":         "Output only valid JSON. No text before or after. Include an explicit schema in a leading comment.",
+    "/markdown":     "Use rich Markdown: headers, bold, italic, code blocks, lists. Optimize for readability.",
+    "/code":         "Illustrate with concrete, runnable code examples where applicable. Prefer examples over abstract description.",
+    "/points":       "Structure as a numbered or bulleted list. Each item must be self-contained and substantive.",
+    "/checklist":    "Output a markdown checklist. Each item is actionable. Group by category if more than 7 items.",
+    # ── Depth / Length ───────────────────────────────────────────────
+    "/resume":       "Summarize in maximum 5 bullet points. Each captures one essential idea. No filler.",
+    "/concis":       "Maximum 50 words. Every word must carry weight. Cut everything else.",
+    "/detaille":     "Write between 500 and 1000 words. Develop every point fully. No shortcuts.",
+    "/urgent":       "Skip all preamble. Deliver the actionable answer immediately, first line.",
+    "/silence":      "Output only the direct answer. No preamble, no explanation, no conclusion.",
+    "/minimal":      "Bare minimum: the core answer and one sentence of essential context. Nothing else.",
+    # ── Reasoning ────────────────────────────────────────────────────
+    "/raisonnement": "Walk through your reasoning step by step before giving the final answer. Show the thinking path, not just the conclusion.",
+    "/etapes":       "Break down into clearly numbered sequential steps. Each step: what to do, why, expected output.",
+    "/exemple":      "Begin with a concrete real-world example before any theory or abstraction.",
+    "/analogie":     "Explain using two analogies from everyday life. Then discuss the limits of each.",
+    "/pourcontre":   "Structure as PROS / CONS with equal depth on each side. Conclude with a synthesized recommendation.",
+    "/debat":        "Present as a debate between two named experts with opposing views. Summarize consensus at the end.",
+    "/reverse":      "Argue the opposite of the expected answer first. Then reconcile by explaining when each position holds.",
+    "/iterer":       "Produce 3 distinct versions: V1 (minimal), V2 (standard), V3 (exhaustive).",
+    "/ameliorer":    "Identify 3 weaknesses in how this is typically approached. Then rewrite addressing each weakness explicitly.",
+    "/reword":       "Restate the question in your own words before answering to confirm understanding.",
+    "/critique":     "List every flaw, gap, assumption, and risk in this topic or approach. Be thorough and unsympathetic.",
+    "/audit":        "Systematic audit: check for errors, inconsistencies, omissions, and logic or security issues.",
+    "/comparatif":   "Compare at least 3 distinct approaches on the same criteria. Use a table for the comparison matrix.",
+    # ── Context ──────────────────────────────────────────────────────
+    "/historique":   "Ground the answer in historical context. Trace evolution from origin to present state.",
+    "/futuriste":    "Project 10 to 50 years forward. What changes? What are the implications and risks?",
+    "/questionner":  "Do not answer directly. Ask 3 to 5 clarifying questions that would lead to a better answer.",
+    "/neuf":         "Treat this as a completely independent request. Ignore all previous context in this session.",
+    "/priorite":     "Focus primarily on the most recent instruction. Other context is secondary.",
+    # ── Quality ──────────────────────────────────────────────────────
+    "/precision":    "Signal your confidence level for each claim (high / medium / low). Distinguish facts from interpretations.",
+    "/hypotheses":   "List all assumptions you are making before answering. For each, state its validity and impact if wrong.",
+    "/sources":      "Support each factual claim with a real source or, if unavailable, a clearly labeled hypothetical reference.",
+    "/risques":      "Identify and categorize risks: technical, legal, operational, ethical. Rate each by likelihood and impact.",
+    "/decision":     "End with a clear, argued recommendation. State what you would do and why.",
+    "/verification": "Before outputting, verify internal consistency. Flag any contradiction or uncertainty explicitly.",
+    "/confiance":    "For each factual claim, assign a confidence percentage (0–100%) and justify it briefly.",
+    "/questions":    "End with the 3 best follow-up questions a curious expert would ask next.",
+    "/sansbuzz":     "Avoid all buzzwords, marketing language, and jargon. Use plain, direct language only.",
+}
+
+
+def parse_metacommands(text: str) -> Tuple[str, str]:
+    """
+    Extract /slash tokens from the task text.
+    Returns (cleaned_task, instruction_block).
+    The instruction_block is empty string if no metacommands were found.
+    """
+    tokens = text.split()
+    instructions: List[str] = []
+    clean: List[str] = []
+
+    for token in tokens:
+        if not token.startswith("/"):
+            clean.append(token)
+            continue
+
+        low = token.lower()
+
+        # Parametric: /limite:N
+        if low.startswith("/limite:"):
+            try:
+                n = int(low.split(":", 1)[1])
+                instructions.append(f"Maximum response length: {n} words. Do not exceed this limit.")
+            except ValueError:
+                clean.append(token)
+            continue
+
+        # Parametric: /niveau:X
+        if low.startswith("/niveau:"):
+            level_raw = low.split(":", 1)[1]
+            level_map = {
+                "debutant": "beginner", "débutant": "beginner", "beginner": "beginner",
+                "intermediaire": "intermediate", "intermédiaire": "intermediate", "intermediate": "intermediate",
+                "expert": "expert", "avance": "advanced", "avancé": "advanced",
+            }
+            level = level_map.get(level_raw, level_raw)
+            instructions.append(f"Calibrate depth, vocabulary, and assumed knowledge for a {level}-level audience.")
+            continue
+
+        # Parametric: /confiance (with or without value)
+        if low.startswith("/confiance"):
+            instructions.append("For each factual claim, assign a confidence percentage (0–100%) and justify it briefly.")
+            continue
+
+        if low in METACOMMANDS:
+            instructions.append(METACOMMANDS[low])
+        else:
+            # Unknown /command — pass through as literal text
+            clean.append(token)
+
+    cleaned = " ".join(clean).strip()
+
+    if not instructions:
+        return cleaned, ""
+
+    block = (
+        "\n## ACTIVE METACOMMANDS — APPLY STRICTLY\n"
+        "The following behavioral directives override default style, format, and depth:\n\n"
+        + "\n".join(f"- {instr}" for instr in instructions)
+        + "\n"
+    )
+    return cleaned, block
 
 
 def split_topics(topics_raw: str) -> List[str]:
@@ -1363,10 +1511,16 @@ def print_menu():
 
 def ask_task_and_topics() -> Tuple[str, str]:
     print()
+    print("  Tip: prefix your task with /slash metacommands (e.g. /expert /concis /tableau)")
     task = input("  Describe your task:\n  > ").strip()
     if not task:
         print("  [!] Task cannot be empty.")
         return "", ""
+    # Parse and report active metacommands
+    _, meta_block = parse_metacommands(task)
+    if meta_block:
+        detected = [t for t in task.split() if t.startswith("/")]
+        print(f"  [metacommands active] {', '.join(detected)}")
     topics_raw = input("  Topics (comma-separated, or ENTER for none):\n  > ").strip()
     return task, topics_raw
 

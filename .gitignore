@@ -20,6 +20,19 @@ memory/sessions.json
 outputs/*
 !outputs/.gitkeep
 
+# Network captures — may contain IPs, payloads, personal data
+*.pcap
+*.pcapng
+*.cap
+tcpdump*.txt
+tcpdump*.log
+
+# Scratch / working files — never commit
+f1.json
+f2.json
+scratch/
+tmp/
+
 # IDE
 .vscode/
 .idea/
