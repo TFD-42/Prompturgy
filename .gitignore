@@ -37,6 +37,13 @@ f2.json
 scratch/
 tmp/
 
+# Test results — may contain user prompts / logs
+tools/test_results*.json
+tools/test_batch*.json
+
+# Claude Code session data — local only
+.claude/
+
 # IDE
 .vscode/
 .idea/

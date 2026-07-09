@@ -85,17 +85,22 @@ PRE_PROCESSOR_TIMEOUT = 30
 PRE_PROCESSOR_MAX_TOKENS = 600
 PRE_PROCESSOR_PROMPT = """You are a prompt reconstruction specialist. Your ONLY job is to take a raw, imperfect user input and return a single clean, complete, well-structured prompt.
 
+⚠️ LANGUAGE LOCK — THIS IS NON-NEGOTIABLE:
+The input language has been detected as: {DETECTED_LANG}
+You MUST write the reconstructed prompt in {DETECTED_LANG} ONLY.
+DO NOT translate. DO NOT switch languages. If you are unsure, keep every word in {DETECTED_LANG}.
+
 ABSOLUTE RULES:
 - Output ONLY the reconstructed prompt. Nothing else.
 - No preamble. No explanation. No labels. No headers. No meta-commentary.
 - Do NOT answer the question. Do NOT execute the task. Reconstruct the prompt ONLY.
 - Preserve the user's intent exactly — do not change the domain or goal.
-- CRITICAL: Output in the EXACT SAME LANGUAGE as the input. French input → French output. English input → English output. NEVER translate.
+- LANGUAGE: output MUST be in {DETECTED_LANG}. Never translate. Never switch.
 - Preserve role/persona directives ("Tu es...", "Act as...") exactly.
 
 WHAT TO FIX:
 - Typos, missing words, grammatical fragments → correct silently
-- Vague references ("ce truc", "ça") → make explicit from context
+- Vague references ("ce truc", "ça", "it") → make explicit from context
 - Missing output format → infer and state it clearly
 - Missing audience/scope → infer and state it
 - If input < 20 words: expand to a complete actionable prompt
@@ -107,13 +112,14 @@ WHAT TO PRESERVE ALWAYS:
 - Technical level and domain
 - Any explicit constraints the user stated
 - /slash metacommands at the start
+- Language: {DETECTED_LANG}
 
 Raw user input:
 <<<INPUT
 {RAW_INPUT}
 INPUT>>>
 
-Reconstructed prompt:"""
+Reconstructed prompt (in {DETECTED_LANG}):"""
 
 # Create directories at import time
 MEMORY_DIR.mkdir(exist_ok=True)
@@ -1834,6 +1840,34 @@ def sanitize_input(value: str, kind: str = "text") -> str:
     return value.strip()
 
 
+def _detect_input_language(text: str) -> str:
+    """Lightweight heuristic to detect French vs English for prompt injection."""
+    t = text.lower()
+    fr_markers = {
+        "le", "la", "les", "de", "du", "des", "un", "une", "et", "en",
+        "je", "tu", "il", "nous", "vous", "ils", "que", "qui", "est",
+        "pas", "pour", "sur", "avec", "dans", "par", "mais", "comment",
+        "aide", "moi", "mon", "ton", "son", "très", "être", "faire",
+        "avoir", "veux", "peux", "dois", "faut", "quoi", "comment",
+        "expliquer", "explique", "besoin", "vouloir", "cest", "jsuis",
+    }
+    en_markers = {
+        "the", "a", "an", "is", "are", "was", "were", "be", "been",
+        "have", "has", "do", "does", "did", "will", "would", "can",
+        "could", "should", "this", "that", "with", "from", "they",
+        "their", "your", "how", "what", "when", "where", "why", "who",
+        "i", "my", "me", "we", "you", "help", "make", "write", "build",
+        "explain", "design", "implement", "create", "describe",
+    }
+    import re as _re
+    words = set(_re.sub(r"[^\w\s]", " ", t).split())
+    fr_score = len(words & fr_markers)
+    en_score = len(words & en_markers)
+    if fr_score > en_score:
+        return "French"
+    return "English"
+
+
 def pre_process_input(
     raw_input: str,
     model: str,
@@ -1846,7 +1880,12 @@ def pre_process_input(
     if not raw_input or not raw_input.strip():
         return raw_input
     try:
-        prompt = PRE_PROCESSOR_PROMPT.replace("{RAW_INPUT}", raw_input.strip())
+        detected_lang = _detect_input_language(raw_input.strip())
+        prompt = (
+            PRE_PROCESSOR_PROMPT
+            .replace("{RAW_INPUT}", raw_input.strip())
+            .replace("{DETECTED_LANG}", detected_lang)
+        )
         payload = {
             "model": sanitize_input(model, "model"),
             "prompt": prompt,
