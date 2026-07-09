@@ -90,7 +90,7 @@ ABSOLUTE RULES:
 - No preamble. No explanation. No labels. No headers. No meta-commentary.
 - Do NOT answer the question. Do NOT execute the task. Reconstruct the prompt ONLY.
 - Preserve the user's intent exactly — do not change the domain or goal.
-- Keep the same language as the user (French in → French out).
+- CRITICAL: Output in the EXACT SAME LANGUAGE as the input. French input → French output. English input → English output. NEVER translate.
 - Preserve role/persona directives ("Tu es...", "Act as...") exactly.
 
 WHAT TO FIX:
