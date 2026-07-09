@@ -64,6 +64,11 @@ DEFAULT_MODEL_A = "llama3:latest"
 DEFAULT_MODEL_B = "qwen2.5:7b"
 DEFAULT_SYNTH_MODEL = "qwen2.5:7b"
 DEFAULT_TEMPERATURE = 0.3
+
+# Generic, non-identifying HTTP User-Agent for web enrichment requests.
+# Change this string if you want to identify the tool differently,
+# but never include real OS, device, or browser version info here.
+HTTP_USER_AGENT = "Mozilla/5.0 (compatible; ManifestGen/2.1; +https://github.com/TFD-42/Pro-Prompt)"
 DEFAULT_TIMEOUT = 600  # seconds for a single Ollama call
 SYNTH_TIMEOUT = 1200   # longer timeout for synthesis
 
@@ -599,7 +604,7 @@ def web_search_duckduckgo(query: str, max_results: int = 5) -> List[Dict[str, st
         resp = requests.get(
             "https://html.duckduckgo.com/html/",
             params={"q": query},
-            headers={"User-Agent": "Mozilla/5.0 (compatible; ManifestGen/2.0)"},
+            headers={"User-Agent": HTTP_USER_AGENT},
             timeout=10,
         )
         resp.raise_for_status()
@@ -630,7 +635,7 @@ def fetch_page_text(url: str, max_chars: int = 3000) -> str:
     try:
         resp = requests.get(
             url,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; ManifestGen/2.0)"},
+            headers={"User-Agent": HTTP_USER_AGENT},
             timeout=10,
         )
         resp.raise_for_status()
@@ -810,7 +815,7 @@ class DualPaneDisplay:
                 output.append(f"{left} | {right}")
             sep = "-" * self.col_w + "-+-" + "-" * self.col_w
             output.append(sep)
-            status = f"  A: {len(self.lines_a)} lignes | B: {len(self.lines_b)} lignes"
+            status = f"  A: {len(self.lines_a)} lines | B: {len(self.lines_b)} lines"
             output.append(status)
 
             sys.stdout.write("\n".join(output))
