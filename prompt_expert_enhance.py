@@ -1163,6 +1163,7 @@ def generate_parallel_both(
     techniques: Optional[List[int]] = None,
     use_web: bool = True,
     live_display: bool = False,
+    mode: str = "full",
 ) -> Tuple[str, str, Path, Path]:
     if not user_input.strip():
         raise ValueError("Task description must not be empty.")
@@ -1174,13 +1175,13 @@ def generate_parallel_both(
         def worker_a():
             return generate_multi_topics(
                 model_a, user_input, topics_raw, temperature, use_memory,
-                ollama_url, timeout, techniques, use_web, stream_callback=pane.feed_a,
+                ollama_url, timeout, techniques, use_web, stream_callback=pane.feed_a, mode=mode,
             )
 
         def worker_b():
             return generate_multi_topics(
                 model_b, user_input, topics_raw, temperature, use_memory,
-                ollama_url, timeout, techniques, use_web, stream_callback=pane.feed_b,
+                ollama_url, timeout, techniques, use_web, stream_callback=pane.feed_b, mode=mode,
             )
 
         with ThreadPoolExecutor(max_workers=2) as pool:
@@ -1191,7 +1192,8 @@ def generate_parallel_both(
         print("\n")
     else:
         def worker(model):
-            return generate_multi_topics(model, user_input, topics_raw, temperature, use_memory, ollama_url, timeout, techniques, use_web)
+            return generate_multi_topics(model, user_input, topics_raw, temperature, use_memory,
+                                         ollama_url, timeout, techniques, use_web, mode=mode)
 
         with ThreadPoolExecutor(max_workers=2) as pool:
             fa = pool.submit(worker, model_a)
@@ -1202,12 +1204,13 @@ def generate_parallel_both(
     file_a = OUTPUT_DIR / f"{session_id}_{model_a.replace(':','_')}.md"
     file_b = OUTPUT_DIR / f"{session_id}_{model_b.replace(':','_')}.md"
 
-    header_a = f"# Manifest -- {model_a}\n\nTask: {user_input}\nTopics: {topics_raw or '(global)'}\nGenerated: {session_id}\n\n---\n"
-    header_b = f"# Manifest -- {model_b}\n\nTask: {user_input}\nTopics: {topics_raw or '(global)'}\nGenerated: {session_id}\n\n---\n"
+    kind = "Output" if mode == "quick" else "Manifest"
+    header_a = f"# {kind} — {model_a}\n\nTask: {user_input}\nTopics: {topics_raw or '(global)'}\nGenerated: {session_id}\n\n---\n"
+    header_b = f"# {kind} — {model_b}\n\nTask: {user_input}\nTopics: {topics_raw or '(global)'}\nGenerated: {session_id}\n\n---\n"
 
     file_a.write_text(header_a + out_a, encoding="utf-8")
     file_b.write_text(header_b + out_b, encoding="utf-8")
-    logger.info(f"Parallel output written to {file_a} and {file_b}")
+    logger.debug(f"Parallel output written to {file_a.name} and {file_b.name}")
 
     append_session({
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -1310,10 +1313,11 @@ def run_full_pipeline(
     use_web: bool = True,
     live_display: bool = False,
     stream: bool = False,
+    mode: str = "full",
 ):
     out_a, out_b, fa, fb = generate_parallel_both(
         user_input, topics_raw, temperature, use_memory, ollama_url, timeout,
-        model_a, model_b, techniques, use_web, live_display,
+        model_a, model_b, techniques, use_web, live_display, mode=mode,
     )
     synthesis, fs = run_synthesis(
         user_input, out_a, out_b, temperature, use_memory, ollama_url, timeout,
@@ -1350,16 +1354,20 @@ def parse_techniques(techniques_raw: str) -> List[int]:
 
 def common_args(parser: argparse.ArgumentParser):
     """Add arguments common to all generation commands."""
-    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="LLM temperature")
+    parser.add_argument("--temperature", type=float, default=DEFAULT_TEMPERATURE, help="LLM temperature (default: 0.3)")
     parser.add_argument("--ollama-url", default=OLLAMA_URL, help="Ollama API endpoint")
-    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Timeout per Ollama call (seconds)")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Timeout per Ollama call in seconds")
     parser.add_argument("--no-memory", action="store_true", default=False, help="Disable session memory context")
-    parser.add_argument("--techniques", default="", help="Comma-separated technique IDs (e.g. 1,5,8 or 1-10)")
-    parser.add_argument("--list-techniques", action="store_true", help="List all available prompt engineering techniques")
+    parser.add_argument("--techniques", default="", help="Technique IDs: 1,5,8 or range 1-20 or 'all'")
+    parser.add_argument("--mode", choices=["quick", "full"], default="full",
+                        help="quick = single enhanced prompt; full = 12-section manifest (default: full)")
+    parser.add_argument("--list-techniques", action="store_true", help="List all 173 prompt engineering techniques")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Generate reproducible instruction manifests via Ollama.")
+    parser = argparse.ArgumentParser(
+        description="Pro-Prompt: enhance any prompt using 173 prompt-engineering techniques via Ollama."
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # generate
@@ -1430,6 +1438,7 @@ def main():
 
     use_memory = not args.no_memory if hasattr(args, "no_memory") else True
     techniques = parse_techniques(args.techniques) if hasattr(args, "techniques") else DEFAULT_TECHNIQUES
+    mode = getattr(args, "mode", "full")
 
     try:
         if args.command == "generate":
@@ -1443,10 +1452,11 @@ def main():
                 ollama_url=args.ollama_url,
                 timeout=args.timeout,
                 techniques=techniques,
+                mode=mode,
             )
             if args.output:
                 Path(args.output).write_text(result, encoding="utf-8")
-                logger.info(f"Output written to {args.output}")
+                print(f"Output written to {args.output}")
             else:
                 print(result)
 
@@ -1455,9 +1465,10 @@ def main():
             out_a, out_b, fa, fb = generate_parallel_both(
                 args.task, topics_raw, args.temperature, use_memory,
                 args.ollama_url, args.timeout, args.model_a, args.model_b, techniques,
+                mode=mode,
             )
-            print(f"Model {args.model_a} output -> {fa}")
-            print(f"Model {args.model_b} output -> {fb}")
+            print(f"Output A ({args.model_a}): outputs/{Path(fa).name}")
+            print(f"Output B ({args.model_b}): outputs/{Path(fb).name}")
 
         elif args.command == "synthesis":
             manifest_a = args.file_a.read_text(encoding="utf-8")
@@ -1468,19 +1479,20 @@ def main():
             )
             if args.output:
                 Path(args.output).write_text(synthesis, encoding="utf-8")
-                logger.info(f"Synthesis written to {args.output}")
+                print(f"Synthesis written to {args.output}")
             else:
-                print(f"Synthesis saved to {out_path}")
+                print(f"Synthesis saved: outputs/{Path(out_path).name}")
 
         elif args.command == "full":
             topics_raw = "\n".join(args.topics) if args.topics else ""
             out_a, out_b, fa, fb, synthesis, fs = run_full_pipeline(
                 args.task, topics_raw, args.temperature, use_memory,
-                args.ollama_url, args.timeout, args.model_a, args.model_b, args.synthesis_model, techniques,
+                args.ollama_url, args.timeout, args.model_a, args.model_b,
+                args.synthesis_model, techniques, mode=mode,
             )
-            print(f"Model {args.model_a} manifest: {fa}")
-            print(f"Model {args.model_b} manifest: {fb}")
-            print(f"Expert synthesis: {fs}")
+            print(f"Output A ({args.model_a}): outputs/{Path(fa).name}")
+            print(f"Output B ({args.model_b}): outputs/{Path(fb).name}")
+            print(f"Synthesis           : outputs/{Path(fs).name}")
 
         elif args.command == "memory":
             if args.mem_cmd == "view":
@@ -1832,8 +1844,9 @@ def menu_parallel(settings: dict):
     model_b = pick_model_interactive("Select model B", settings.get("model_b", DEFAULT_MODEL_B))
     use_web = settings.get("use_web", True)
     do_stream = settings.get("stream", True) and sys.stdout.isatty()
+    mode = settings.get("output_mode", "full")
 
-    print(f"\n  → Running: {model_a}  vs  {model_b}")
+    print(f"\n  → {model_a}  vs  {model_b}  |  Mode: {mode.upper()}")
     if use_web and check_internet():
         print("  → Web enrichment: ON")
     if do_stream:
@@ -1853,9 +1866,10 @@ def menu_parallel(settings: dict):
             techniques=settings["techniques"],
             use_web=use_web,
             live_display=do_stream,
+            mode=mode,
         )
-        print(f"\n  Manifest A: {fa}")
-        print(f"  Manifest B: {fb}")
+        print(f"\n  Output A: outputs/{Path(fa).name}")
+        print(f"  Output B: outputs/{Path(fb).name}")
     except (ValueError, RuntimeError, TimeoutError) as e:
         print(f"\n  [ERROR] {e}")
 
@@ -1868,8 +1882,9 @@ def menu_full(settings: dict):
     synth = pick_model_interactive("Select synthesis model", settings.get("synthesis_model", DEFAULT_SYNTH_MODEL))
     use_web = settings.get("use_web", True)
     do_stream = settings.get("stream", True) and sys.stdout.isatty()
+    mode = settings.get("output_mode", "full")
 
-    print(f"\n  → Pipeline: {model_a} + {model_b} → synthesis {synth}")
+    print(f"\n  → {model_a} + {model_b} → {synth}  |  Mode: {mode.upper()}")
     if use_web and check_internet():
         print("  → Web enrichment: ON")
     if do_stream:
@@ -1891,10 +1906,11 @@ def menu_full(settings: dict):
             use_web=use_web,
             live_display=do_stream,
             stream=do_stream,
+            mode=mode,
         )
-        print(f"\n  Manifest A : {fa}")
-        print(f"  Manifest B : {fb}")
-        print(f"  Synthesis  : {fs}")
+        print(f"\n  Output A   : outputs/{Path(fa).name}")
+        print(f"  Output B   : outputs/{Path(fb).name}")
+        print(f"  Synthesis  : outputs/{Path(fs).name}")
     except (ValueError, RuntimeError, TimeoutError) as e:
         print(f"\n  [ERROR] {e}")
 
