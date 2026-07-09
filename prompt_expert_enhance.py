@@ -1509,35 +1509,73 @@ def print_menu():
     print()
 
 
-def ask_task_and_topics() -> Tuple[str, str]:
+_METHOD_GROUPS = [
+    ("Persona ",  "/expert /humain /enfant /philosophe /sceptique /mentor /cynique /serieux /humour /emphatique"),
+    ("Format  ",  "/tableau /json /markdown /points /checklist /code"),
+    ("Depth   ",  "/resume /concis /detaille /urgent /silence /minimal /limite:N"),
+    ("Reason  ",  "/raisonnement /etapes /exemple /analogie /pourcontre /debat /reverse /iterer /ameliorer /critique /audit /comparatif"),
+    ("Quality ",  "/precision /hypotheses /sources /risques /decision /verification /confiance /questions /sansbuzz"),
+    ("Context ",  "/historique /futuriste /questionner /neuf /priorite /niveau:X"),
+]
+
+
+def collect_input() -> Tuple[str, str]:
+    """
+    Three-step input: prompt → methods → topic.
+    Returns (full_task_with_metacommands, topics_raw).
+    Runs without any further prompts after this.
+    """
     print()
-    print("  Tip: prefix your task with /slash metacommands (e.g. /expert /concis /tableau)")
-    task = input("  Describe your task:\n  > ").strip()
+    print("  ─" * 31)
+    print("  STEP 1 — Prompt to enhance")
+    print("  ─" * 31)
+    task = input("  > ").strip()
     if not task:
-        print("  [!] Task cannot be empty.")
+        print("  [!] Prompt cannot be empty.")
         return "", ""
-    # Parse and report active metacommands
-    _, meta_block = parse_metacommands(task)
-    if meta_block:
-        detected = [t for t in task.split() if t.startswith("/")]
-        print(f"  [metacommands active] {', '.join(detected)}")
-    topics_raw = input("  Topics (comma-separated, or ENTER for none):\n  > ").strip()
-    return task, topics_raw
+
+    print()
+    print("  ─" * 31)
+    print("  STEP 2 — Methods  (ENTER to skip)")
+    for label, cmds in _METHOD_GROUPS:
+        print(f"  {label}: {cmds}")
+    print("  ─" * 31)
+    methods_raw = input("  > ").strip()
+
+    # Merge any /commands already in the task with those typed in step 2
+    task_cmds = [t for t in task.split() if t.startswith("/")]
+    task_clean = " ".join(t for t in task.split() if not t.startswith("/"))
+    extra_cmds = [t for t in methods_raw.split() if t.startswith("/")]
+    all_cmds = task_cmds + extra_cmds
+
+    if all_cmds:
+        print(f"  [active] {' '.join(all_cmds)}")
+        full_task = " ".join(all_cmds) + " " + task_clean
+    else:
+        full_task = task_clean
+
+    print()
+    print("  ─" * 31)
+    print("  STEP 3 — Topic focus  (ENTER to skip)")
+    print("  ─" * 31)
+    topics_raw = input("  > ").strip()
+
+    return full_task.strip(), topics_raw
 
 
 def menu_generate(settings: dict):
-    task, topics_raw = ask_task_and_topics()
+    task, topics_raw = collect_input()
     if not task:
         return
-    model = pick_model_interactive("Generation model", settings["model_a"])
+    model = settings["model_a"]
     use_web = settings.get("use_web", True)
     do_stream = settings.get("stream", True) and sys.stdout.isatty()
 
+    print(f"\n  → Running with model: {model}")
     if use_web and check_internet():
-        print("\n  Web search in progress ...")
-    print(f"  Starting generation with {model} ...")
+        print("  → Web enrichment: ON")
     if do_stream:
-        print(f"\n  --- {model} : streaming ---\n")
+        print(f"\n  {'─' * 58}\n")
 
     def print_token(t):
         sys.stdout.write(t)
@@ -1561,25 +1599,25 @@ def menu_generate(settings: dict):
         session_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:6]
         out_file = OUTPUT_DIR / f"{session_id}_{model.replace(':', '_')}.md"
         out_file.write_text(result, encoding="utf-8")
-        print(f"\n  Manifest saved: {out_file}")
+        print(f"\n  Saved: {out_file}")
     except (ValueError, RuntimeError, TimeoutError) as e:
         print(f"\n  [ERROR] {e}")
 
 
 def menu_parallel(settings: dict):
-    task, topics_raw = ask_task_and_topics()
+    task, topics_raw = collect_input()
     if not task:
         return
-    model_a = pick_model_interactive("Model A", settings["model_a"])
-    model_b = pick_model_interactive("Model B", settings["model_b"])
+    model_a = settings["model_a"]
+    model_b = settings["model_b"]
     use_web = settings.get("use_web", True)
     do_stream = settings.get("stream", True) and sys.stdout.isatty()
 
+    print(f"\n  → Running: {model_a}  vs  {model_b}")
     if use_web and check_internet():
-        print("\n  Web search in progress ...")
-    print(f"  Starting parallel {model_a} + {model_b} ...")
+        print("  → Web enrichment: ON")
     if do_stream:
-        print("  Split screen active. Ctrl+C to interrupt.\n")
+        print("  → Split screen active. Ctrl+C to interrupt.\n")
         time.sleep(1)
 
     try:
@@ -1603,20 +1641,20 @@ def menu_parallel(settings: dict):
 
 
 def menu_full(settings: dict):
-    task, topics_raw = ask_task_and_topics()
+    task, topics_raw = collect_input()
     if not task:
         return
-    model_a = pick_model_interactive("Model A", settings["model_a"])
-    model_b = pick_model_interactive("Model B", settings["model_b"])
-    synth = pick_model_interactive("Synthesis model", settings["synthesis_model"])
+    model_a = settings["model_a"]
+    model_b = settings["model_b"]
+    synth = settings["synthesis_model"]
     use_web = settings.get("use_web", True)
     do_stream = settings.get("stream", True) and sys.stdout.isatty()
 
+    print(f"\n  → Pipeline: {model_a} + {model_b} → synthesis {synth}")
     if use_web and check_internet():
-        print("\n  Web search in progress ...")
-    print(f"  Full pipeline: {model_a} + {model_b} -> synthesis {synth} ...")
+        print("  → Web enrichment: ON")
     if do_stream:
-        print("  Phase 1: parallel split screen. Phase 2: synthesis streaming.\n")
+        print("  → Phase 1: parallel split screen. Phase 2: synthesis streaming.\n")
         time.sleep(1)
 
     try:
