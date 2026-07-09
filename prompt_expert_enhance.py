@@ -80,6 +80,41 @@ SYNTH_TIMEOUT = 1200   # longer timeout for synthesis
 # Default techniques applied when none are specified (configurable via CLI or settings)
 DEFAULT_TECHNIQUES = [1, 5, 8, 10, 12, 14, 18, 25, 40, 47, 108, 121, 125, 147, 153]
 
+# Pre-processor constants
+PRE_PROCESSOR_TIMEOUT = 30
+PRE_PROCESSOR_MAX_TOKENS = 600
+PRE_PROCESSOR_PROMPT = """You are a prompt reconstruction specialist. Your ONLY job is to take a raw, imperfect user input and return a single clean, complete, well-structured prompt.
+
+ABSOLUTE RULES:
+- Output ONLY the reconstructed prompt. Nothing else.
+- No preamble. No explanation. No labels. No headers. No meta-commentary.
+- Do NOT answer the question. Do NOT execute the task. Reconstruct the prompt ONLY.
+- Preserve the user's intent exactly — do not change the domain or goal.
+- Keep the same language as the user (French in → French out).
+- Preserve role/persona directives ("Tu es...", "Act as...") exactly.
+
+WHAT TO FIX:
+- Typos, missing words, grammatical fragments → correct silently
+- Vague references ("ce truc", "ça") → make explicit from context
+- Missing output format → infer and state it clearly
+- Missing audience/scope → infer and state it
+- If input < 20 words: expand to a complete actionable prompt
+- If input 20-100 words: clean, structure, preserve length
+- If input > 100 words: restructure without expanding
+
+WHAT TO PRESERVE ALWAYS:
+- Tone (formal, casual, authoritative, creative)
+- Technical level and domain
+- Any explicit constraints the user stated
+- /slash metacommands at the start
+
+Raw user input:
+<<<INPUT
+{RAW_INPUT}
+INPUT>>>
+
+Reconstructed prompt:"""
+
 # Create directories at import time
 MEMORY_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -1238,6 +1273,7 @@ def run_synthesis(
     stream: bool = False,
     model_a_name: str = "",
     model_b_name: str = "",
+    stream_callback=None,
 ) -> Tuple[str, Path]:
     """
     Generate a meta‑synthesis from two manifest texts.
@@ -1263,7 +1299,13 @@ def run_synthesis(
     ctx_size = max(16384, len(prompt) // 3)
 
     logger.info("Starting expert synthesis ...")
-    if stream and sys.stdout.isatty():
+    if stream_callback is not None:
+        synthesis = query_ollama_stream(
+            synthesis_model, prompt, temperature,
+            num_predict=-1, timeout=timeout, ollama_url=ollama_url,
+            callback=stream_callback, num_ctx=ctx_size,
+        )
+    elif stream and sys.stdout.isatty():
         print(f"\n{'='*62}")
         print(f"  SYNTHESIS IN PROGRESS — {synthesis_model}")
         print(f"{'='*62}\n")
@@ -1362,6 +1404,8 @@ def common_args(parser: argparse.ArgumentParser):
     parser.add_argument("--mode", choices=["quick", "full"], default="full",
                         help="quick = single enhanced prompt; full = 12-section manifest (default: full)")
     parser.add_argument("--list-techniques", action="store_true", help="List all 173 prompt engineering techniques")
+    parser.add_argument("--no-preprocess", action="store_true", default=False,
+                        help="Skip pre-processor step (use raw input directly)")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1410,6 +1454,12 @@ def build_parser() -> argparse.ArgumentParser:
     mem_sub.add_parser("view", help="Display memory contents")
     mem_sub.add_parser("clear", help="Erase all memory")
 
+    # web UI
+    web_parser = subparsers.add_parser("web", help="Launch local web interface (novice-friendly)")
+    web_parser.add_argument("--port", type=int, default=7860, help="Port for the web UI (default: 7860)")
+    web_parser.add_argument("--no-browser", action="store_true", default=False,
+                            help="Don't open browser automatically")
+
     return parser
 
 
@@ -1439,6 +1489,18 @@ def main():
     use_memory = not args.no_memory if hasattr(args, "no_memory") else True
     techniques = parse_techniques(args.techniques) if hasattr(args, "techniques") else DEFAULT_TECHNIQUES
     mode = getattr(args, "mode", "full")
+    settings = load_settings()
+
+    # CLI pre-processor
+    cli_task = sanitize_input(getattr(args, "task", ""), "text")
+    if cli_task and not getattr(args, "no_preprocess", False) and settings.get("use_pre_processor", True):
+        pp_model = settings.get("pre_processor_model") or getattr(args, "model", settings.get("model_a", DEFAULT_MODEL_A))
+        pp_url = getattr(args, "ollama_url", OLLAMA_URL)
+        restructured = pre_process_input(cli_task, pp_model, pp_url)
+        if restructured and restructured != cli_task:
+            print(f"[pre-processor] → {restructured[:200]}{'...' if len(restructured) > 200 else ''}")
+            # patch args.task with restructured version
+            args.task = restructured
 
     try:
         if args.command == "generate":
@@ -1501,6 +1563,10 @@ def main():
                 clear_memory()
                 print("Memory cleared.")
 
+        elif args.command == "web":
+            from web_server import run_web_server
+            run_web_server(port=args.port, open_browser=not args.no_browser)
+
     except (ValueError, RuntimeError, TimeoutError) as e:
         logger.error(str(e))
         sys.exit(1)
@@ -1527,6 +1593,8 @@ def load_settings() -> dict:
         "use_web": True,
         "stream": True,
         "output_mode": "full",
+        "use_pre_processor": True,
+        "pre_processor_model": "",
     }
     if SETTINGS_FILE.exists():
         try:
@@ -1568,6 +1636,10 @@ def load_settings() -> dict:
 
     if defaults.get("output_mode") not in ("quick", "full"):
         defaults["output_mode"] = "full"
+
+    defaults["use_pre_processor"] = bool(defaults.get("use_pre_processor", True))
+    pp_m = defaults.get("pre_processor_model", "")
+    defaults["pre_processor_model"] = sanitize_input(str(pp_m).strip(), "model") if pp_m else ""
 
     return defaults
 
@@ -1614,7 +1686,7 @@ def print_banner(settings: dict):
     web_st = "ON" if settings.get("use_web", True) and check_internet() else "OFF"
     stream_st = "ON" if settings.get("stream", True) else "OFF"
     print("=" * 62)
-    print("   PRO-PROMPT  —  Expert Prompt Enhancement Tool  v2.2")
+    print("   PRO-PROMPT  —  Expert Prompt Enhancement Tool  v2.3")
     print("=" * 62)
     print(f"   Model A     : {settings['model_a']}")
     print(f"   Model B     : {settings['model_b']}")
@@ -1623,6 +1695,10 @@ def print_banner(settings: dict):
     mode_label = "QUICK (enhanced prompt)" if settings.get("output_mode") == "quick" else "FULL (12-section manifest)"
     print(f"   Techniques  : {len(settings['techniques'])} active / {len(TECHNIQUES_DB)} available")
     print(f"   Output mode : {mode_label}")
+    use_pp = settings.get("use_pre_processor", True)
+    pp_model_disp = settings.get("pre_processor_model") or settings.get("model_a", DEFAULT_MODEL_A)
+    pp_label = f"ON   ({pp_model_disp})" if use_pp else "OFF"
+    print(f"   Pre-process : {pp_label}")
     print(f"   Internet    : {inet}   Web enrichment : {web_st}   Streaming : {stream_st}")
     print("-" * 62)
 
@@ -1744,6 +1820,51 @@ def sanitize_input(value: str, kind: str = "text") -> str:
     return value.strip()
 
 
+def pre_process_input(
+    raw_input: str,
+    model: str,
+    ollama_url: str,
+    timeout: int = PRE_PROCESSOR_TIMEOUT,
+    stream_callback=None,
+) -> str:
+    """Restructure raw user input into a clean prompt via a fast Ollama call.
+    Returns raw_input unchanged on any failure — never raises."""
+    if not raw_input or not raw_input.strip():
+        return raw_input
+    try:
+        prompt = PRE_PROCESSOR_PROMPT.replace("{RAW_INPUT}", raw_input.strip())
+        payload = {
+            "model": sanitize_input(model, "model"),
+            "prompt": prompt,
+            "stream": True,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": PRE_PROCESSOR_MAX_TOKENS,
+                "stop": ["---", "<<<", "INPUT>>>", "\n\n\n"],
+            },
+        }
+        resp = requests.post(
+            ollama_url, json=payload, timeout=timeout,
+            headers={"User-Agent": HTTP_USER_AGENT}, stream=True,
+        )
+        result = []
+        for line in resp.iter_lines():
+            if not line:
+                continue
+            chunk = json.loads(line)
+            token = chunk.get("response", "")
+            if token:
+                result.append(token)
+                if stream_callback:
+                    stream_callback(token)
+            if chunk.get("done"):
+                break
+        out = sanitize_input("".join(result).strip(), "text")
+        return out if out else raw_input
+    except Exception:
+        return raw_input
+
+
 def collect_input(settings: dict) -> Tuple[str, str, str]:
     """
     Four-step input: prompt → methods → topic → model.
@@ -1791,6 +1912,59 @@ def collect_input(settings: dict) -> Tuple[str, str, str]:
     print("  STEP 4 — Model")
     print("  ─" * 31)
     chosen_model = pick_model_interactive("Select model", settings.get("model_a", DEFAULT_MODEL_A))
+
+    # ── STEP 5 — Pre-processor ──────────────────────────────────────────────
+    if settings.get("use_pre_processor", True):
+        pp_model = settings.get("pre_processor_model") or chosen_model
+        ollama_url = settings.get("ollama_url", OLLAMA_URL)
+        do_stream = settings.get("stream", True) and sys.stdout.isatty()
+
+        print()
+        print("  ─" * 31)
+        print("  STEP 5 — Pre-processor  (restructuring your prompt...)")
+        print("  ─" * 31)
+
+        pp_buffer: List[str] = []
+
+        def _pp_stream(token: str):
+            pp_buffer.append(token)
+            sys.stdout.write(token)
+            sys.stdout.flush()
+
+        restructured = pre_process_input(
+            raw_input=full_task,
+            model=pp_model,
+            ollama_url=ollama_url,
+            timeout=PRE_PROCESSOR_TIMEOUT,
+            stream_callback=_pp_stream if do_stream else None,
+        )
+
+        if not do_stream:
+            print(f"  {restructured}")
+        else:
+            if not pp_buffer:
+                print(f"  {restructured}")
+
+        print()
+        print()
+        print("  [ENTER] Accept  |  [e] Edit  |  [s] Skip")
+        try:
+            confirm = input("  > ").strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            confirm = "s"
+
+        if confirm == "e":
+            print("  Edit (ENTER to confirm):")
+            try:
+                edited = input(f"  > ").strip()
+                full_task = sanitize_input(edited, "text") if edited else restructured
+            except (KeyboardInterrupt, EOFError):
+                full_task = restructured
+        elif confirm == "s":
+            pass
+        else:
+            full_task = restructured or full_task
+    # ── end STEP 5 ──────────────────────────────────────────────────────────
 
     return full_task.strip(), topics_raw, chosen_model
 
@@ -2069,6 +2243,21 @@ def menu_advanced(settings: dict):
     raw_mode = input(f"  Mode [quick/full] [{settings.get('output_mode','full')}]: ").strip().lower()
     if raw_mode in ("quick", "full"):
         settings["output_mode"] = raw_mode
+
+    settings["use_pre_processor"] = prompt_bool(
+        "Pre-processor (restructure input before generation)",
+        settings.get("use_pre_processor", True),
+    )
+    if settings["use_pre_processor"]:
+        print()
+        print("  Pre-processor model (blank = use Model A):")
+        cur_pp = settings.get("pre_processor_model") or ""
+        raw_pp = input(f"  [{cur_pp or 'same as Model A'}] > ").strip()
+        if raw_pp:
+            settings["pre_processor_model"] = sanitize_input(raw_pp, "model")
+        else:
+            settings["pre_processor_model"] = ""
+
     save_settings(settings)
     print("\n  Settings saved.")
 
@@ -2134,6 +2323,17 @@ def interactive():
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        main()
+        if sys.argv[1] == "--web":
+            # quick shortcut: python prompt_expert_enhance.py --web [--port N]
+            port = 7860
+            if "--port" in sys.argv:
+                try:
+                    port = int(sys.argv[sys.argv.index("--port") + 1])
+                except (ValueError, IndexError):
+                    pass
+            from web_server import run_web_server
+            run_web_server(port=port, open_browser=True)
+        else:
+            main()
     else:
         interactive()
