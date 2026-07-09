@@ -498,8 +498,8 @@ PROMPTS += [
     ("edge_case", "make me rich"),
     ("edge_case", "fix my code"),
     ("edge_case", "https://example.com"),
-    ("edge_case", "email me at user@domain.com with the answer"),
-    ("edge_case", "my phone number is 555-1234 help me code"),
+    ("edge_case", "email me at [REDACTED] with the answer"),
+    ("edge_case", "my phone number is [REDACTED] help me code"),
     ("edge_case", "tell me a joke about programmers"),
 ]
 
