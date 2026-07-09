@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
-Manifest Generator – CLI Tool for Reproducible Instruction Manifests via Ollama.
+Pro-Prompt – Expert Prompt Enhancement Tool powered by Ollama.
 
 Version: 2.2.0
+
+Two output modes:
+    quick  — single enhanced prompt, ready to paste into any LLM
+    full   — exhaustive 12-section instruction manifest (expert use)
 
 Usage:
     python prompt_expert_enhance.py                    (interactive menu)
@@ -372,6 +376,39 @@ def ensure_ollama_ready():
         start_ollama_serve()
 
 
+def ensure_models_available(settings: dict):
+    """First-run: if no models are installed, guide the user to pull one."""
+    models = list_local_models()
+    if models:
+        return
+    print()
+    print("  " + "─" * 58)
+    print("  No local models found. You need at least one to generate.")
+    print()
+    print("  Recommended models (pick based on available RAM):")
+    print("    1.  llama3.2:3b    ~2 GB   — fast, lightweight, good quality")
+    print("    2.  llama3:8b      ~4.7 GB — solid all-rounder  (recommended)")
+    print("    3.  qwen2.5:7b     ~4.4 GB — strong reasoning")
+    print("    4.  mistral:7b     ~4.1 GB — instruction-tuned")
+    print("    5.  Skip for now   (generation will fail until a model is pulled)")
+    print("  " + "─" * 58)
+    choice = input("  Choice [2] > ").strip() or "2"
+    model_map = {
+        "1": "llama3.2:3b",
+        "2": "llama3:8b",
+        "3": "qwen2.5:7b",
+        "4": "mistral:7b",
+    }
+    if choice in model_map:
+        chosen = model_map[choice]
+        if pull_model_interactive(chosen):
+            settings["model_a"] = chosen
+            settings["model_b"] = chosen
+            settings["synthesis_model"] = chosen
+            save_settings(settings)
+            print(f"\n  Default model set to: {chosen}")
+
+
 # ----------------------------------------------------------------------
 # Meta‑prompts (unchanged from original, kept for brevity)
 # ----------------------------------------------------------------------
@@ -511,6 +548,37 @@ MANIFEST_B>>>
 
 # START THE SYNTHESIS NOW
 Begin directly with "## PART I - COMPARATIVE ANALYSIS". No preamble.
+"""
+
+QUICK_PROMPT = """
+You are an expert prompt engineer with deep knowledge of LLM behavior.
+
+Your task: take the user's raw input and rewrite it as a single, polished, production-ready prompt — optimized for maximum clarity, specificity, and LLM effectiveness.
+
+Apply these prompt engineering techniques as you rewrite:
+{TECHNIQUE_BLOCK}
+
+{METACOMMANDS}
+
+{TOPIC_FOCUS}
+
+{MEMORY_CONTEXT}
+
+{WEB_CONTEXT}
+
+Raw user input:
+<<<INPUT
+{USER_INPUT}
+INPUT>>>
+
+Rules:
+- Output ONLY the enhanced prompt. Nothing else.
+- No preamble, no explanation, no meta-commentary, no section headers.
+- The output must be ready to paste directly into any LLM (Claude, GPT, Gemini, Llama, Mistral).
+- If the input contains /slash metacommands, they must be reflected in the style and tone of the enhanced prompt, not repeated literally.
+- Be specific, concrete, and assume nothing the original left vague.
+
+Start the enhanced prompt now:
 """
 
 # ----------------------------------------------------------------------
@@ -856,22 +924,36 @@ def build_full_prompt(
     use_memory: bool = True,
     techniques: Optional[List[int]] = None,
     use_web: bool = True,
+    mode: str = "full",
 ) -> str:
     # Extract /slash metacommands from the raw input
     clean_input, meta_block = parse_metacommands(user_input)
 
     topic_block = ""
     if topic.strip():
-        topic_block = (
-            "## FOCUS TOPIC\n"
-            f"Focus this entire manifest on the following topic: '{topic.strip()}'. "
-            "Treat this topic as the dominant angle, going to maximum depth."
-        )
+        if mode == "quick":
+            topic_block = f"## FOCUS\nConcentrate the enhanced prompt on this specific angle: '{topic.strip()}'."
+        else:
+            topic_block = (
+                "## FOCUS TOPIC\n"
+                f"Focus this entire manifest on the following topic: '{topic.strip()}'. "
+                "Treat this topic as the dominant angle, going to maximum depth."
+            )
+
     memory_block = build_memory_context() if use_memory else ""
     web_block = build_web_context(clean_input, topic) if use_web else ""
     techniques_block = get_technique_boost(techniques or DEFAULT_TECHNIQUES)
 
-    # meta_block injected right after techniques, before USER INPUT delimiter
+    if mode == "quick":
+        return (QUICK_PROMPT
+                .replace("{USER_INPUT}", clean_input.strip())
+                .replace("{TOPIC_FOCUS}", topic_block)
+                .replace("{MEMORY_CONTEXT}", memory_block)
+                .replace("{WEB_CONTEXT}", web_block)
+                .replace("{TECHNIQUE_BLOCK}", techniques_block)
+                .replace("{METACOMMANDS}", meta_block))
+
+    # mode == "full" — original 12-section manifest
     combined_prefix = techniques_block
     if meta_block:
         combined_prefix = techniques_block + "\n" + meta_block
@@ -1037,6 +1119,7 @@ def generate_multi_topics(
     techniques: Optional[List[int]] = None,
     use_web: bool = True,
     stream_callback=None,
+    mode: str = "full",
 ) -> str:
     if not user_input.strip():
         raise ValueError("Task description must not be empty.")
@@ -1045,9 +1128,9 @@ def generate_multi_topics(
         topics = [""]
     chunks = []
     for idx, topic in enumerate(topics, 1):
-        label = topic if topic else "global manifest"
-        logger.info(f"Generating {idx}/{len(topics)} for model {model}: '{label}'")
-        prompt = build_full_prompt(user_input, topic, use_memory, techniques, use_web)
+        label = topic if topic else "prompt"
+        logger.debug(f"Generating {idx}/{len(topics)} for model {model}: '{label}'")
+        prompt = build_full_prompt(user_input, topic, use_memory, techniques, use_web, mode)
         if stream_callback:
             text = query_ollama_stream(model, prompt, temperature, num_predict=-1, timeout=timeout, ollama_url=ollama_url, callback=stream_callback)
         else:
@@ -1428,9 +1511,10 @@ def load_settings() -> dict:
         "temperature": DEFAULT_TEMPERATURE,
         "timeout": DEFAULT_TIMEOUT,
         "ollama_url": OLLAMA_URL,
-        "techniques": DEFAULT_TECHNIQUES,
+        "techniques": list(DEFAULT_TECHNIQUES),
         "use_web": True,
         "stream": True,
+        "output_mode": "full",
     }
     if SETTINGS_FILE.exists():
         try:
@@ -1438,6 +1522,41 @@ def load_settings() -> dict:
             defaults.update(saved)
         except (json.JSONDecodeError, Exception):
             pass
+
+    # Type-coerce every field so a corrupt settings.json never breaks the session
+    try:
+        defaults["temperature"] = float(defaults["temperature"])
+        if not 0.0 <= defaults["temperature"] <= 2.0:
+            defaults["temperature"] = DEFAULT_TEMPERATURE
+    except (TypeError, ValueError):
+        defaults["temperature"] = DEFAULT_TEMPERATURE
+
+    try:
+        defaults["timeout"] = int(defaults["timeout"])
+        if defaults["timeout"] < 10:
+            defaults["timeout"] = DEFAULT_TIMEOUT
+    except (TypeError, ValueError):
+        defaults["timeout"] = DEFAULT_TIMEOUT
+
+    if not isinstance(defaults["model_a"], str) or not defaults["model_a"].strip():
+        defaults["model_a"] = DEFAULT_MODEL_A
+    if not isinstance(defaults["model_b"], str) or not defaults["model_b"].strip():
+        defaults["model_b"] = DEFAULT_MODEL_B
+    if not isinstance(defaults["synthesis_model"], str) or not defaults["synthesis_model"].strip():
+        defaults["synthesis_model"] = DEFAULT_SYNTH_MODEL
+
+    if not isinstance(defaults["techniques"], list):
+        defaults["techniques"] = list(DEFAULT_TECHNIQUES)
+    else:
+        valid = [int(t) for t in defaults["techniques"] if str(t).lstrip("-").isdigit() and int(t) > 0]
+        defaults["techniques"] = valid if valid else list(DEFAULT_TECHNIQUES)
+
+    defaults["use_web"] = bool(defaults.get("use_web", True))
+    defaults["stream"] = bool(defaults.get("stream", True))
+
+    if defaults.get("output_mode") not in ("quick", "full"):
+        defaults["output_mode"] = "full"
+
     return defaults
 
 
@@ -1489,7 +1608,9 @@ def print_banner(settings: dict):
     print(f"   Model B     : {settings['model_b']}")
     print(f"   Synthesis   : {settings['synthesis_model']}")
     print(f"   Temperature : {settings['temperature']}")
+    mode_label = "QUICK (enhanced prompt)" if settings.get("output_mode") == "quick" else "FULL (12-section manifest)"
     print(f"   Techniques  : {len(settings['techniques'])} active / {len(TECHNIQUES_DB)} available")
+    print(f"   Output mode : {mode_label}")
     print(f"   Internet    : {inet}   Web enrichment : {web_st}   Streaming : {stream_st}")
     print("-" * 62)
 
@@ -1668,8 +1789,9 @@ def menu_generate(settings: dict):
         return
     use_web = settings.get("use_web", True)
     do_stream = settings.get("stream", True) and sys.stdout.isatty()
+    mode = settings.get("output_mode", "full")
 
-    print(f"\n  → Running with model: {model}")
+    print(f"\n  → Model: {model}  |  Mode: {mode.upper()}")
     if use_web and check_internet():
         print("  → Web enrichment: ON")
     if do_stream:
@@ -1691,6 +1813,7 @@ def menu_generate(settings: dict):
             techniques=settings["techniques"],
             use_web=use_web,
             stream_callback=print_token if do_stream else None,
+            mode=mode,
         )
         if do_stream:
             print("\n")
@@ -1908,6 +2031,13 @@ def menu_advanced(settings: dict):
     settings["ollama_url"] = sanitize_input(raw_url, "url") or settings["ollama_url"]
     settings["use_web"] = prompt_bool("Automatic web enrichment", settings.get("use_web", True))
     settings["stream"] = prompt_bool("Real-time streaming in terminal", settings.get("stream", True))
+    print()
+    print("  Output mode:")
+    print("    quick  —  Single enhanced prompt, ready to paste into any LLM")
+    print("    full   —  Exhaustive 12-section instruction manifest (expert)")
+    raw_mode = input(f"  Mode [quick/full] [{settings.get('output_mode','full')}]: ").strip().lower()
+    if raw_mode in ("quick", "full"):
+        settings["output_mode"] = raw_mode
     save_settings(settings)
     print("\n  Settings saved.")
 
@@ -1918,6 +2048,7 @@ def interactive():
 
     settings = load_settings()
     ensure_ollama_ready()
+    ensure_models_available(settings)
 
     _NO_PAUSE = {"0", "q", "quit", "exit", "7", "h", "help", "?"}
 
