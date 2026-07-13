@@ -29,6 +29,8 @@ from prompt_expert_enhance import (
     pre_process_input, list_local_models, sanitize_input,
     load_settings, save_settings, PRE_PROCESSOR_TIMEOUT,
     is_ollama_running, ensure_ollama_ready,
+    set_backend_type, set_backend_api_base,
+    PROMPT_TEMPLATES,
 )
 
 app = Flask(__name__, static_folder=None)
@@ -185,7 +187,19 @@ input:checked + .slider:before { transform: translateX(18px); }
   display: none;
 }
 .pp-banner strong { color: var(--accent2); }
-.pp-banner .pp-text { margin-top: 8px; color: var(--text); font-family: var(--mono); font-size: .82rem; white-space: pre-wrap; }
+.pp-banner .pp-hint { font-weight: 400; color: var(--muted); font-size: .78rem; }
+.pp-banner textarea.pp-text {
+  margin-top: 8px; width: 100%; min-height: 90px; resize: vertical;
+  color: var(--text); background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; font-family: var(--mono); font-size: .82rem;
+  white-space: pre-wrap; box-sizing: border-box;
+}
+.pp-banner textarea.pp-text:focus { outline: none; border-color: var(--accent); }
+.pp-banner .pp-actions { margin-top: 6px; display: flex; gap: 8px; align-items: center; }
+.pp-banner .pp-reset-btn {
+  font-size: .75rem; color: var(--accent2); background: none; border: none;
+  cursor: pointer; padding: 2px 0; text-decoration: underline;
+}
 
 /* Parallel panels */
 .dual-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 28px; }
@@ -207,6 +221,15 @@ input:checked + .slider:before { transform: translateX(18px); }
 @keyframes indeterminate {
   0% { left: -30%; } 100% { left: 100%; }
 }
+
+/* Step tracker */
+.step-tracker { display: flex; align-items: center; padding: 0 28px 12px; }
+.step { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+.step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background .2s; }
+.step.active { color: var(--text); font-weight: 600; }
+.step.active .step-dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(108, 127, 255, .25); }
+.step.done .step-dot { background: var(--accent2); }
+.step-line { flex: 1; height: 1px; background: var(--border); margin: 0 8px; min-width: 12px; }
 
 /* Save btn */
 .btn-save {
@@ -233,6 +256,14 @@ input:checked + .slider:before { transform: translateX(18px); }
     <div class="status-row">
       <div class="dot" id="ollama-dot"></div>
       <span id="ollama-status">Checking Ollama...</span>
+    </div>
+
+    <!-- Templates -->
+    <div>
+      <label>Template <span style="font-weight:400;text-transform:none;">(optional starting point)</span></label>
+      <select id="template-picker">
+        <option value="">— Choose a template —</option>
+      </select>
     </div>
 
     <!-- Prompt -->
@@ -274,6 +305,13 @@ input:checked + .slider:before { transform: translateX(18px); }
           📋 Full<br><span style="font-size:.72rem;font-weight:400">12-section expert manifest</span>
         </div>
       </div>
+      <div id="draft-mode-wrap" class="toggle-row" style="display:none;margin-top:8px">
+        <label style="margin:0">Draft <span style="font-weight:400;color:var(--accent2)">(§1-2 only, fast iteration)</span></label>
+        <label class="toggle">
+          <input type="checkbox" id="draft-mode">
+          <span class="slider"></span>
+        </label>
+      </div>
     </div>
 
     <!-- Pipeline -->
@@ -311,6 +349,12 @@ input:checked + .slider:before { transform: translateX(18px); }
         </label>
       </div>
       <div class="hint" style="margin-top:6px">Ollama cleans and restructures your prompt before the main generation.</div>
+      <div id="pp-model-wrap" style="margin-top:8px">
+        <label style="font-size:.72rem;">Pre-processor model <span style="font-weight:400;color:var(--accent2)">(optional, e.g. a lighter/faster model)</span></label>
+        <select id="pp-model" style="font-size:.82rem;">
+          <option value="">(same as Model A)</option>
+        </select>
+      </div>
     </div>
 
     <!-- Run -->
@@ -325,8 +369,23 @@ input:checked + .slider:before { transform: translateX(18px); }
     <h2 id="main-title">Output</h2>
     <div style="display:flex;gap:8px;align-items:center;">
       <button class="btn-save" id="btn-copy" onclick="copyOutput()" style="display:none">Copy</button>
-      <button class="btn-save" id="btn-download" onclick="downloadOutput()" style="display:none">Download .md</button>
+      <select id="export-format" style="display:none;font-size:.82rem;" title="Export format">
+        <option value="md">Markdown (.md)</option>
+        <option value="txt">Plain text (.txt)</option>
+        <option value="json">JSON (.json)</option>
+      </select>
+      <button class="btn-save" id="btn-download" onclick="downloadOutput()" style="display:none">Download</button>
     </div>
+  </div>
+
+  <div class="step-tracker" id="step-tracker" style="display:none">
+    <div class="step" id="step-preprocess" data-step="preprocess"><span class="step-dot"></span><span class="step-label">Preprocess</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="step-research" data-step="research"><span class="step-dot"></span><span class="step-label">Research</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="step-generate" data-step="generate"><span class="step-dot"></span><span class="step-label">Generate</span></div>
+    <div class="step-line"></div>
+    <div class="step" id="step-synthesize" data-step="synthesize"><span class="step-dot"></span><span class="step-label">Synthesize</span></div>
   </div>
 
   <div class="progress-bar" id="progress-bar">
@@ -335,8 +394,12 @@ input:checked + .slider:before { transform: translateX(18px); }
 
   <!-- PP banner -->
   <div class="pp-banner" id="pp-banner">
-    <strong>Pre-processor restructured your prompt:</strong>
-    <div class="pp-text" id="pp-text"></div>
+    <strong>Pre-processor restructured your prompt</strong> <span class="pp-hint">— review and edit, then continue</span>
+    <textarea class="pp-text" id="pp-text" spellcheck="false"></textarea>
+    <div class="pp-actions">
+      <button class="btn-run" id="pp-continue-btn" onclick="continueToGeneration()" style="display:none;padding:8px 16px;font-size:.85rem">Continue to generation →</button>
+      <button class="pp-reset-btn" id="pp-reset-btn" onclick="resetPreprocessedText()" style="display:none">Reset to original</button>
+    </div>
   </div>
 
   <!-- Output: single / synthesis -->
@@ -382,6 +445,7 @@ let isRunning = false
 async function init() {
   checkOllama()
   loadModels()
+  loadTemplates()
   pipelineChange()
   setInterval(checkOllama, 10000)
 }
@@ -416,8 +480,55 @@ async function loadModels() {
         sel.appendChild(opt)
       })
     })
+    // Pre-processor model: keep the "(same as Model A)" default option, append the rest.
+    const ppSel = $('pp-model')
+    models.forEach(m => {
+      const opt = document.createElement('option')
+      opt.value = m.name; opt.textContent = m.name
+      ppSel.appendChild(opt)
+    })
   } catch(e) { console.error(e) }
 }
+
+let TEMPLATES_BY_ID = {}
+
+async function loadTemplates() {
+  try {
+    const r = await fetch('/api/templates')
+    const d = await r.json()
+    const templates = d.templates || []
+    const sel = $('template-picker')
+    const byCategory = {}
+    templates.forEach(t => {
+      TEMPLATES_BY_ID[t.id] = t
+      ;(byCategory[t.category] = byCategory[t.category] || []).push(t)
+    })
+    Object.keys(byCategory).forEach(cat => {
+      const group = document.createElement('optgroup')
+      group.label = cat
+      byCategory[cat].forEach(t => {
+        const opt = document.createElement('option')
+        opt.value = t.id; opt.textContent = t.title
+        group.appendChild(opt)
+      })
+      sel.appendChild(group)
+    })
+  } catch(e) { console.error(e) }
+}
+
+$('template-picker').addEventListener('change', () => {
+  const id = $('template-picker').value
+  if (!id) return
+  const t = TEMPLATES_BY_ID[id]
+  if (!t) return
+  const promptEl = $('prompt')
+  if (promptEl.value.trim() && !confirm('Replace your current prompt with this template?')) {
+    $('template-picker').value = ''
+    return
+  }
+  promptEl.value = t.task
+  $('template-picker').value = ''
+})
 
 // ── Mode & pipeline ────────────────────────────────────────────────────────
 
@@ -426,6 +537,7 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'))
     btn.classList.add('active')
     selectedMode = btn.dataset.mode
+    $('draft-mode-wrap').style.display = selectedMode === 'full' ? '' : 'none'
   })
 })
 
@@ -435,6 +547,16 @@ function pipelineChange() {
   $('synthesis-section').style.display = p === 'full_pipeline' ? '' : 'none'
 }
 $('pipeline').addEventListener('change', pipelineChange)
+
+function ppToggleChange() {
+  $('pp-model-wrap').style.display = $('use-pp').checked ? '' : 'none'
+}
+$('use-pp').addEventListener('change', ppToggleChange)
+ppToggleChange()
+
+$('pp-text').addEventListener('input', () => {
+  $('pp-reset-btn').style.display = ($('pp-text').value !== ppOriginalText) ? '' : 'none'
+})
 
 // ── Chips ──────────────────────────────────────────────────────────────────
 
@@ -453,17 +575,24 @@ document.querySelectorAll('.chip').forEach(chip => {
 
 // ── Run ────────────────────────────────────────────────────────────────────
 
+let pendingGeneration = null  // {pipeline, modelA, modelB} while paused for pre-processor review
+
 async function runGeneration() {
   if (isRunning) return
   const raw = $('prompt').value.trim()
   if (!raw) { alert('Please enter a prompt first.'); return }
 
   isRunning = true
+  pendingGeneration = null
   $('btn-run').disabled = true
   $('btn-run').textContent = 'Generating...'
   $('btn-copy').style.display = 'none'
   $('btn-download').style.display = 'none'
+  $('export-format').style.display = 'none'
   $('pp-banner').style.display = 'none'
+  $('pp-continue-btn').style.display = 'none'
+  $('pp-text').value = ''
+  ppOriginalText = ''
   $('progress-fill').style.display = 'block'
 
   const pipeline = $('pipeline').value
@@ -471,17 +600,46 @@ async function runGeneration() {
   const modelB = $('model-b').value
   const usePP = $('use-pp').checked
 
+  initStepTracker({preprocess: usePP, synthesize: pipeline === 'full_pipeline'})
+
   // Build full prompt with chips
   const metaCmds = activeChips.join(' ')
   const task = metaCmds ? metaCmds + ' ' + raw : raw
 
   // Pre-processor (optional, quick client-side SSE)
   if (usePP) {
+    setActiveStep('preprocess')
     await runPreprocessor(task, modelA)
+    // Pause here so the user can actually review/edit before generating —
+    // continuing immediately would make the editable textarea pointless.
+    pendingGeneration = {pipeline, modelA, modelB}
+    isRunning = false
+    $('btn-run').disabled = false
+    $('btn-run').textContent = 'Generate ↗'
+    $('progress-fill').style.display = 'none'
+    $('pp-continue-btn').style.display = ''
+    return
   }
 
-  const finalTask = usePP ? ($('pp-text').textContent || task) : task
+  await proceedToGeneration(task, pipeline, modelA, modelB)
+}
 
+async function continueToGeneration() {
+  if (!pendingGeneration || isRunning) return
+  const {pipeline, modelA, modelB} = pendingGeneration
+  pendingGeneration = null
+  const finalTask = $('pp-text').value.trim() || $('prompt').value.trim()
+
+  isRunning = true
+  $('btn-run').disabled = true
+  $('btn-run').textContent = 'Generating...'
+  $('pp-continue-btn').style.display = 'none'
+  $('progress-fill').style.display = 'block'
+
+  await proceedToGeneration(finalTask, pipeline, modelA, modelB)
+}
+
+async function proceedToGeneration(finalTask, pipeline, modelA, modelB) {
   // Show correct panel
   if (pipeline === 'single') {
     showSingle()
@@ -497,19 +655,29 @@ async function runGeneration() {
   finishRun()
 }
 
+let ppOriginalText = ''
+
 async function runPreprocessor(task, model) {
   try {
+    const ppModel = $('pp-model').value || ''
     const r = await fetch('/api/preprocess', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({task, model})
+      body: JSON.stringify({task, model, pre_processor_model: ppModel})
     })
     const d = await r.json()
     if (d.result && d.result !== task) {
-      $('pp-text').textContent = d.result
+      ppOriginalText = d.result
+      $('pp-text').value = d.result
       $('pp-banner').style.display = 'block'
+      $('pp-reset-btn').style.display = 'none'
     }
   } catch(e) { /* silent fallback */ }
+}
+
+function resetPreprocessedText() {
+  $('pp-text').value = ppOriginalText
+  $('pp-reset-btn').style.display = 'none'
 }
 
 async function streamSingle(task, model) {
@@ -520,7 +688,7 @@ async function streamSingle(task, model) {
     const r = await fetch('/api/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({task, model, mode: selectedMode, pipeline: 'single'})
+      body: JSON.stringify({task, model, mode: selectedMode, pipeline: 'single', draft: $('draft-mode').checked})
     })
     const reader = r.body.getReader()
     const dec = new TextDecoder()
@@ -532,7 +700,9 @@ async function streamSingle(task, model) {
         if (!line.startsWith('data:')) continue
         try {
           const d = JSON.parse(line.slice(5))
-          if (d.token) { lastOutput += d.token; $('output-single').textContent = lastOutput }
+          if (d.phase === 'researching') setActiveStep('research')
+          else if (d.phase === 'generating') setActiveStep('generate', ['research'])
+          else if (d.token) { lastOutput += d.token; $('output-single').textContent = lastOutput; setActiveStep('generate') }
         } catch {}
       }
     }
@@ -554,7 +724,7 @@ async function streamParallel(task, modelA, modelB, withSynth = false) {
       const r = await fetch('/api/generate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({task, model, mode: selectedMode, pipeline: 'single'})
+        body: JSON.stringify({task, model, mode: selectedMode, pipeline: 'single', draft: $('draft-mode').checked})
       })
       const reader = r.body.getReader()
       const dec = new TextDecoder()
@@ -566,7 +736,9 @@ async function streamParallel(task, modelA, modelB, withSynth = false) {
           if (!line.startsWith('data:')) continue
           try {
             const d = JSON.parse(line.slice(5))
-            if (d.token) { accumulator[0] += d.token; panel.textContent = accumulator[0] }
+            if (d.phase === 'researching') setActiveStep('research')
+            else if (d.phase === 'generating') setActiveStep('generate', ['research'])
+            else if (d.token) { accumulator[0] += d.token; panel.textContent = accumulator[0]; setActiveStep('generate') }
           } catch {}
         }
       }
@@ -582,6 +754,7 @@ async function streamParallel(task, modelA, modelB, withSynth = false) {
   lastOutput = `# Model A (${modelA})\n\n${outA}\n\n---\n\n# Model B (${modelB})\n\n${outB}`
 
   if (withSynth && outA && outB) {
+    setActiveStep('synthesize')
     $('synthesis-section').style.display = ''
     $('panel-synth').textContent = 'Synthesizing...'
     try {
@@ -620,14 +793,53 @@ function showParallel(withSynth = false) {
   $('synthesis-section').style.display = withSynth ? '' : 'none'
 }
 
+// ── Step tracker (preprocess → research → generate → synthesize) ───────────
+
+const STEP_ORDER = ['preprocess', 'research', 'generate', 'synthesize']
+
+function stepEl(name) { return document.getElementById('step-' + name) }
+
+function initStepTracker({preprocess, synthesize}) {
+  const visible = {preprocess: !!preprocess, research: true, generate: true, synthesize: !!synthesize}
+  STEP_ORDER.forEach(name => {
+    const el = stepEl(name)
+    if (!el) return
+    el.style.display = visible[name] ? '' : 'none'
+    el.classList.remove('active', 'done')
+  })
+  $('step-tracker').style.display = 'flex'
+}
+
+function setActiveStep(name, skip) {
+  if (skip) skip.forEach(s => { const el = stepEl(s); if (el) el.style.display = 'none' })
+  let reached = false
+  STEP_ORDER.forEach(step => {
+    const el = stepEl(step)
+    if (!el || el.style.display === 'none') return
+    if (step === name) {
+      el.classList.add('active'); el.classList.remove('done'); reached = true
+    } else if (!reached) {
+      el.classList.remove('active'); el.classList.add('done')
+    } else {
+      el.classList.remove('active', 'done')
+    }
+  })
+}
+
+function hideStepTracker() {
+  $('step-tracker').style.display = 'none'
+}
+
 function finishRun() {
   isRunning = false
   $('btn-run').disabled = false
   $('btn-run').textContent = 'Generate ↗'
   $('progress-fill').style.display = 'none'
+  hideStepTracker()
   if (lastOutput) {
     $('btn-copy').style.display = ''
     $('btn-download').style.display = ''
+    $('export-format').style.display = ''
   }
 }
 
@@ -639,10 +851,36 @@ function copyOutput() {
 }
 
 function downloadOutput() {
-  const blob = new Blob([lastOutput], {type: 'text/markdown'})
+  const fmt = $('export-format').value
+  let content, mime, ext
+  if (fmt === 'json') {
+    content = JSON.stringify({
+      generated_at: new Date().toISOString(),
+      pipeline: $('pipeline').value,
+      mode: selectedMode,
+      model_a: $('model-a').value,
+      model_b: $('pipeline').value !== 'single' ? $('model-b').value : undefined,
+      output: lastOutput,
+    }, null, 2)
+    mime = 'application/json'
+    ext = 'json'
+  } else if (fmt === 'txt') {
+    // Strip common Markdown markup for a clean plain-text read.
+    content = lastOutput
+      .replace(/```[a-zA-Z0-9]*\n?/g, '')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/[*_`]/g, '')
+    mime = 'text/plain'
+    ext = 'txt'
+  } else {
+    content = lastOutput
+    mime = 'text/markdown'
+    ext = 'md'
+  }
+  const blob = new Blob([content], {type: mime})
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = 'pro-prompt-output.md'
+  a.download = `pro-prompt-output.${ext}`
   a.click()
 }
 
@@ -673,16 +911,33 @@ def api_models():
         return jsonify({"models": [], "error": str(e)})
 
 
+@app.route("/api/templates")
+def api_templates():
+    try:
+        templates = [
+            {"id": t["id"], "title": t["title"], "category": t.get("category", "Other"), "task": t["task"]}
+            for t in PROMPT_TEMPLATES.values()
+        ]
+        return jsonify({"templates": templates})
+    except Exception as e:
+        return jsonify({"templates": [], "error": str(e)})
+
+
 @app.route("/api/preprocess", methods=["POST"])
 def api_preprocess():
     data = request.get_json(force=True, silent=True) or {}
     task = sanitize_input(data.get("task", ""), "text")
     model = sanitize_input(data.get("model", DEFAULT_MODEL_A), "model")
     settings = load_settings()
+    # Optional distinct (typically lighter/faster) model for this step only —
+    # explicit request field wins, then the saved setting, then falls back to
+    # whichever model the UI is using for generation.
+    pp_model_raw = data.get("pre_processor_model") or settings.get("pre_processor_model") or model
+    pp_model = sanitize_input(pp_model_raw, "model")
     ollama_url = settings.get("ollama_url", OLLAMA_URL)
     if not task:
         return jsonify({"result": ""})
-    result = pre_process_input(task, model, ollama_url, timeout=PRE_PROCESSOR_TIMEOUT)
+    result = pre_process_input(task, pp_model, ollama_url, timeout=PRE_PROCESSOR_TIMEOUT)
     return jsonify({"result": result})
 
 
@@ -692,6 +947,7 @@ def api_generate():
     task = sanitize_input(data.get("task", ""), "text")
     model = sanitize_input(data.get("model", DEFAULT_MODEL_A), "model")
     mode = data.get("mode", "full") if data.get("mode") in ("quick", "full") else "full"
+    draft = bool(data.get("draft", False)) and mode == "full"
     settings = load_settings()
 
     if not task:
@@ -699,13 +955,19 @@ def api_generate():
 
     token_queue: queue.Queue = queue.Queue()
     accumulated: list = []
+    use_web = settings.get("use_web", True)
 
     def stream_cb(token: str):
         accumulated.append(token)
-        token_queue.put(token)
+        token_queue.put({"token": token})
 
     def run():
         try:
+            # Emitted before generate_multi_topics() so the client can show a
+            # distinct "researching" step while build_web_context() runs —
+            # that work happens synchronously inside this call, before the
+            # first real token reaches stream_cb.
+            token_queue.put({"phase": "researching" if use_web else "generating"})
             generate_multi_topics(
                 model=model,
                 user_input=task,
@@ -715,9 +977,12 @@ def api_generate():
                 ollama_url=settings.get("ollama_url", OLLAMA_URL),
                 timeout=settings.get("timeout", 600),
                 techniques=settings.get("techniques", list(DEFAULT_TECHNIQUES)),
-                use_web=settings.get("use_web", True),
+                use_web=use_web,
                 stream_callback=stream_cb,
                 mode=mode,
+                max_web_pages=settings.get("max_web_pages", 1),
+                draft=draft,
+                summarize_web_pages=settings.get("summarize_web_pages", False),
             )
             # Save to outputs/ like the CLI does
             from datetime import datetime, timezone
@@ -727,7 +992,7 @@ def api_generate():
             out = OUTPUT_DIR / f"{sid}_{model.replace(':', '_')}_web.md"
             out.write_text("".join(accumulated), encoding="utf-8")
         except Exception as e:
-            token_queue.put(f"\n[ERROR] {e}")
+            token_queue.put({"token": f"\n[ERROR] {e}"})
         finally:
             token_queue.put(None)  # sentinel
 
@@ -736,12 +1001,11 @@ def api_generate():
 
     def generate_sse():
         while True:
-            token = token_queue.get()
-            if token is None:
+            item = token_queue.get()
+            if item is None:
                 yield "data: {\"done\": true}\n\n"
                 break
-            payload = json.dumps({"token": token})
-            yield f"data: {payload}\n\n"
+            yield f"data: {json.dumps(item)}\n\n"
 
     return Response(
         stream_with_context(generate_sse()),
@@ -810,6 +1074,10 @@ def api_synthesize():
 # ── Launcher ─────────────────────────────────────────────────────────────────
 
 def run_web_server(port: int = 7860, open_browser: bool = True):
+    startup_settings = load_settings()
+    set_backend_type(startup_settings.get("backend_type", "ollama"))
+    set_backend_api_base(startup_settings.get("ollama_url", OLLAMA_URL))
+
     print(f"\n  Pro-Prompt Web UI")
     print(f"  ─────────────────────────────────────")
     print(f"  URL   : http://localhost:{port}")
@@ -819,8 +1087,21 @@ def run_web_server(port: int = 7860, open_browser: bool = True):
     if open_browser:
         def _open():
             import time as _time
-            _time.sleep(1.2)
-            webbrowser.open(f"http://localhost:{port}")
+            import socket
+            # Wait for server to be ready: poll /api/status until response
+            url = f"http://localhost:{port}"
+            max_retries, delay = 15, 0.4
+            for attempt in range(max_retries):
+                try:
+                    sock = socket.create_connection(("127.0.0.1", port), timeout=2)
+                    sock.close()
+                    webbrowser.open(url)
+                    return
+                except (socket.timeout, socket.error):
+                    if attempt < max_retries - 1:
+                        _time.sleep(delay)
+            # Fallback: open anyway after timeout (server may still start)
+            webbrowser.open(url)
         threading.Thread(target=_open, daemon=True).start()
 
     try:

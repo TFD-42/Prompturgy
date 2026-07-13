@@ -3,14 +3,47 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![Ollama](https://img.shields.io/badge/Ollama-compatible-green.svg)](https://ollama.com)
-[![Techniques](https://img.shields.io/badge/Techniques-173-orange.svg)](#prompt-engineering-techniques)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android-lightgrey.svg)](#install)
+[![LLM](https://img.shields.io/badge/LLM-Local%20AI-blueviolet.svg)](https://en.wikipedia.org/wiki/Large_language_model)
+[![Prompt Engineering](https://img.shields.io/badge/Prompt%20Engineering-173%20Techniques-orange.svg)](#prompt-engineering-techniques)
+[![Open Source](https://img.shields.io/badge/Open%20Source-MIT-success.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows%20%7C%20Android-informational.svg)](#install)
 
 **Transform any raw prompt into expert-level output using local LLMs via Ollama — no cloud API keys, no data sent to external servers.**
 
-<img width="1983" height="793" alt="llm" src="https://github.com/user-attachments/assets/4623620d-df38-41ae-834e-3fa239f22e6f" />
+## Platform Overview
+
+<img width="800" height="450" alt="Pro-Prompt Web UI — Local AI Prompt Enhancement" src="https://i.imgur.com/placeholder-screenshot.png" />
 
 Pro-Prompt enhances any prompt before it reaches your LLM. A **pre-processor** first restructures and clarifies your raw input, then applies **173 prompt engineering techniques** across 15 categories (Chain-of-Thought, Tree-of-Thought, ReAct, MECE, red teaming, and more) to generate exhaustive, high-quality outputs. Novice users get a **local web UI** (one click); power users get a full **CLI** with parallel dual-model generation, split-screen streaming, and expert synthesis.
+
+**Keywords:** Prompt engineering · Local LLM · Ollama · Open-source AI · Prompt optimization · LLM enhancement · Chain-of-Thought · Tree-of-Thought · ReAct · MECE · Prompt techniques · AI agents · Llama · Qwen · Dolphin · Privacy-first · Offline AI
+
+## Table of Contents
+- [Quick Start](#quick-start) — Install & launch in 2 minutes
+- [Web UI](#launch--web-ui-novice-friendly) — One-click browser interface
+- [CLI](#launch--cli-power-users) — Power user terminal mode  
+- [Techniques](#prompt-engineering-techniques) — 173 techniques across 15 categories
+- [Standalone App](#build-a-standalone-compiled-app-single-icon-no-terminal) — Compiled single-icon binary
+- [Features](#key-features) — Complete feature matrix
+
+---
+
+## Why Pro-Prompt?
+
+**Unlike generic prompt builders**, Pro-Prompt implements **academic prompt engineering theory** (Chain-of-Thought, ReAct, MECE, Constitutional AI, and 15+ other frameworks) across **173 distinct techniques**. Every technique is researched, categorized, and applied *before* your LLM sees the input — so even simple models produce expert-tier outputs.
+
+**Unlike cloud-first tools**, Pro-Prompt runs **100% locally**:
+- ✅ No API calls to external servers
+- ✅ Your data stays on your machine
+- ✅ No subscription fees — MIT licensed
+- ✅ Works offline (except optional web enrichment)
+- ✅ Powered by free, open-source [Ollama](https://ollama.com)
+
+**Unlike single-model tools**, Pro-Prompt can:
+- Run **two LLMs in parallel** with split-screen streaming
+- **Synthesize** both outputs into a unified superior document
+- **Combine** multiple generations end-to-end via full pipeline
+- **Merge** insights from diverse reasoning styles (systematic vs. creative)
 
 ---
 
@@ -43,31 +76,33 @@ Pro-Prompt enhances any prompt before it reaches your LLM. A **pre-processor** f
 
 ### Install
 
-**macOS / Linux:**
+**No terminal at all (double-click):**
+
+| Platform | Just double-click |
+|----------|--------|
+| **macOS** | `Install Pro-Prompt.command` |
+| **Windows** | `Install Pro-Prompt.bat` |
+
+Both detect what's already installed and run the full setup (Ollama, Python 3, virtual environment, dependencies) automatically, ending with a one-click day-to-day launcher (see below). The Windows wrapper runs PowerShell with `-ExecutionPolicy Bypass` scoped to that single launch only — it does not change your system's script-execution policy.
+
+**One-line terminal, by OS:**
+
+macOS / Linux:
 
 ```bash
-git clone https://github.com/TFD-42/Pro-Prompt.git
-cd Pro-Prompt
-chmod +x install.sh
-./install.sh
+git clone https://github.com/TFD-42/Pro-Prompt.git && cd Pro-Prompt && chmod +x install.sh && ./install.sh
 ```
 
-**Windows (PowerShell):**
+Windows (PowerShell):
 
 ```powershell
-git clone https://github.com/TFD-42/Pro-Prompt.git
-cd Pro-Prompt
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\install.ps1
+git clone https://github.com/TFD-42/Pro-Prompt.git; cd Pro-Prompt; powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
-**Android / Termux:**
+Android / Termux:
 
 ```bash
-git clone https://github.com/TFD-42/Pro-Prompt.git
-cd Pro-Prompt
-chmod +x install_termux.sh
-./install_termux.sh
+git clone https://github.com/TFD-42/Pro-Prompt.git && cd Pro-Prompt && chmod +x install_termux.sh && ./install_termux.sh
 ```
 
 The installer handles everything: Ollama, Python 3, virtual environment, and dependencies. It also creates a one-click launcher.
@@ -94,6 +129,32 @@ python3 prompt_expert_enhance.py
 
 Launches the interactive numbered menu. No arguments needed.
 
+### Build a standalone compiled app (single icon, no terminal)
+
+After running the installer once (so dependencies exist in `.venv`), you can
+compile Pro-Prompt into one native app with its own icon:
+
+```bash
+source .venv/bin/activate           # Linux/macOS
+# .\.venv\Scripts\Activate.ps1      # Windows
+pip install -r requirements-build.txt
+python3 build_app.py
+```
+
+Produces:
+
+| Platform | Output |
+|----------|--------|
+| **macOS** | `dist/Pro-Prompt.app` — drag to /Applications, double-click to launch |
+| **Windows** | `dist/Pro-Prompt.exe` — double-click to launch |
+| **Linux** | `dist/Pro-Prompt` — single binary; run it, or wire up a `.desktop` file for a menu icon |
+
+The compiled app starts Ollama if needed and opens the web UI in your
+browser — it needs no Python install or virtual environment at runtime.
+Its data (settings, memory, cache, outputs) lives in a standard per-OS user
+data folder (e.g. `~/Library/Application Support/Pro-Prompt` on macOS)
+rather than next to the app bundle, since app bundles are read-only.
+
 ### CLI Mode
 
 Pass arguments directly for scripting and automation:
@@ -110,7 +171,15 @@ python3 prompt_expert_enhance.py full "Design a REST API" --techniques "1-30"
 
 # List all 173 techniques grouped by category
 python3 prompt_expert_enhance.py generate x --list-techniques
+
+# Start from a predefined template instead of writing a task from scratch
+python3 prompt_expert_enhance.py templates list
+python3 prompt_expert_enhance.py generate "distributed systems" --template learning_plan
 ```
+
+See [`examples/`](examples/) for runnable demos of these commands plus newer
+features (technique bundles, draft mode, offline mode, PII redaction, result
+caching, deep research, alternate backends) and the REST API.
 
 ---
 
@@ -166,6 +235,16 @@ Type a number to select, a model name to pull, or Enter to keep the current one.
 ## Prompt Engineering Techniques
 
 Pro-Prompt ships with **173 techniques** across **15 categories** in `prompt_expert_methodology.json`, plus **8 anti-patterns** and a **quick-reference matrix** for task-based technique selection.
+
+**Research-backed methods included:**
+- **Chain-of-Thought (CoT)** — Reasoning through intermediate steps
+- **Tree-of-Thought (ToT)** — Exploring multiple reasoning branches
+- **ReAct** — Reasoning + Acting iteratively  
+- **MECE** — Mutually Exclusive, Collectively Exhaustive decomposition
+- **Constitutional AI** — Self-correcting with predefined principles
+- **Red Teaming** — Adversarial stress-testing  
+- **Few-Shot Learning** — In-context example priming
+- **Automatic Prompt Optimization** — Self-refining techniques
 
 ### Categories
 
@@ -256,10 +335,24 @@ Pro-Prompt/
 
 ## Requirements
 
-- **[Ollama](https://ollama.com)** — installed automatically by the installer
+- **[Ollama](https://ollama.com)** — installed automatically by the installer (or an OpenAI-compatible backend — see `examples/alternate_backend.md`)
 - **Python 3.8+** — installed automatically by the installer
 - **requests** — installed via `pip install -r requirements.txt`
 - At least one Ollama model pulled (the launcher handles this interactively)
+
+**Headless / CI / server use (no web UI)**: `prompt_expert_enhance.py` never
+imports `flask`/`web_server.py` unless you actually run the `web` subcommand,
+so the CLI (`generate`/`parallel`/`full`/`synthesis`/`memory`) works with just
+`requests` installed. For that minimal footprint:
+
+```bash
+pip install -r requirements-light.txt
+```
+
+`flask` (web UI) and `cryptography` (memory encryption) stay fully optional —
+each feature detects its own missing dependency and either falls back
+gracefully (memory encryption) or exits with a clear one-line message
+(the `web` command) instead of crashing.
 
 ## Configuration
 
@@ -300,11 +393,40 @@ All settings persist in `settings.json` (gitignored, local to each user):
 
 [MIT](LICENSE)
 
+## Related Resources
+
+- **[Ollama](https://ollama.com)** — Open-source large language models
+- **[Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11903)** — Wei et al. (2022)
+- **[Tree-of-Thoughts](https://arxiv.org/abs/2305.10601)** — Yao et al. (2023)
+- **[ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629)** — Yao et al. (2022)
+- **[MECE Principle](https://en.wikipedia.org/wiki/MECE_principle)** — Structured decomposition
+- **[Constitutional AI](https://arxiv.org/abs/2212.04092)** — Self-aligning language models
+- **[Prompt Engineering Guide](https://www.promptingguide.ai/)** — Community resource for LLM prompting
+
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/my-enhancement`)
 3. Run `python3 -m py_compile prompt_expert_enhance.py` before committing
-4. Open a pull request
+4. Push to your fork and open a pull request
 
-Keep `settings.json`, `outputs/`, and `memory/sessions.json` out of commits (they are gitignored).
+**Keep these files out of commits** (already in `.gitignore`):
+- `settings.json` — Local user settings
+- `outputs/` — Generated outputs
+- `memory/sessions.json` — Session history
+- `.env` — Environment variables
+
+## Acknowledgments
+
+Pro-Prompt builds on decades of prompt engineering research from academic institutions and AI labs worldwide. Core theoretical foundations:
+- Stanford, MIT, CMU, UC Berkeley research on language models and reasoning
+- OpenAI, Anthropic, DeepSeek, and open-source communities
+- Original technique papers and methodologies cited in `prompt_expert_methodology.json`
+
+## License
+
+[MIT](LICENSE) — Use freely in personal and commercial projects.
+
+---
+
+**Made with ❤️ for the local AI community. No cloud dependencies. No data collection. Just prompt excellence.**

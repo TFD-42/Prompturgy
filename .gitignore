@@ -8,6 +8,7 @@ env/
 *.egg-info/
 dist/
 build/
+*.spec
 
 # OS
 .DS_Store
@@ -19,6 +20,9 @@ settings.json
 memory/sessions.json
 outputs/*
 !outputs/.gitkeep
+config_hardware.json
+install.log
+cache/
 
 # Network captures — may contain IPs, payloads, personal data
 *.pcap

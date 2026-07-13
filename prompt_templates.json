@@ -1,0 +1,75 @@
+{
+  "description": "Starter prompt templates for common use cases. Each has a ready-to-use task description (with a [TOPIC] placeholder to fill in) and a suggested technique bundle from prompt_expert_methodology.json's quick_reference.",
+  "templates": [
+    {
+      "id": "create_course",
+      "title": "Create an online course",
+      "category": "Education",
+      "task": "Design a complete online course on [TOPIC], including a syllabus with weekly modules, learning objectives for each module, suggested assessments, and a final capstone project.",
+      "suggested_bundle": "Apprentissage / explication"
+    },
+    {
+      "id": "write_report",
+      "title": "Write a report",
+      "category": "Business",
+      "task": "Write a structured report on [TOPIC], covering background/context, current state, key findings, risks, and concrete recommendations.",
+      "suggested_bundle": "Tache analytique precise"
+    },
+    {
+      "id": "analyze_debate",
+      "title": "Analyze a debate",
+      "category": "Analysis",
+      "task": "Analyze the debate around [TOPIC]: present the strongest arguments on each side, identify where they actually disagree versus talk past each other, and assess which claims are best supported by evidence.",
+      "suggested_bundle": "Decision critique"
+    },
+    {
+      "id": "technical_spec",
+      "title": "Write a technical spec",
+      "category": "Engineering",
+      "task": "Write a technical specification for [TOPIC]: problem statement, goals and non-goals, proposed design, alternatives considered, edge cases, and rollout plan.",
+      "suggested_bundle": "Generation de code robuste"
+    },
+    {
+      "id": "code_review_checklist",
+      "title": "Code review checklist",
+      "category": "Engineering",
+      "task": "Produce a thorough code review checklist for [TOPIC] (e.g. a language, framework, or type of change), covering correctness, security, performance, readability, and test coverage.",
+      "suggested_bundle": "Audit / securite"
+    },
+    {
+      "id": "product_launch_plan",
+      "title": "Product launch plan",
+      "category": "Business",
+      "task": "Create a launch plan for [TOPIC]: target audience, positioning, launch timeline with milestones, marketing channels, success metrics, and risks to watch for.",
+      "suggested_bundle": "Recherche de qualite maximale"
+    },
+    {
+      "id": "interview_prep",
+      "title": "Interview preparation",
+      "category": "Career",
+      "task": "Prepare me for an interview about [TOPIC]: likely questions, strong example answers structured around real experience, follow-up questions to expect, and questions I should ask the interviewer.",
+      "suggested_bundle": "Apprentissage / explication"
+    },
+    {
+      "id": "research_summary",
+      "title": "Research summary",
+      "category": "Analysis",
+      "task": "Summarize the current state of research/knowledge on [TOPIC]: key findings, areas of consensus, open questions or disagreements, and the most credible sources to go deeper.",
+      "suggested_bundle": "Synthese de document long"
+    },
+    {
+      "id": "marketing_campaign",
+      "title": "Marketing campaign",
+      "category": "Business",
+      "task": "Design a marketing campaign for [TOPIC]: target segments, core message, channel mix, content calendar outline, and how to measure success.",
+      "suggested_bundle": "Exploration creatrice"
+    },
+    {
+      "id": "learning_plan",
+      "title": "Personal learning plan",
+      "category": "Education",
+      "task": "Create a self-study learning plan to become proficient in [TOPIC] within a reasonable timeframe: prerequisites, phased milestones, recommended resources per phase, and how to test my own progress.",
+      "suggested_bundle": "Apprentissage / explication"
+    }
+  ]
+}
