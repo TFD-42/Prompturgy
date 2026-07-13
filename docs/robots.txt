@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tfd-42.github.io/Pro-Prompt/sitemap.xml
