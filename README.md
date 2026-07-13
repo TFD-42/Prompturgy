@@ -337,6 +337,11 @@ Pro-Prompt/
 
 ## Troubleshooting
 
+**macOS says "Apple could not verify 'Pro-Prompt.app' is free of malware" and blocks it from opening.**
+This is macOS Gatekeeper — it flags any app downloaded from outside the App Store that isn't signed with a paid ($99/year) Apple Developer ID and notarized by Apple. Pro-Prompt is free and open-source, so it isn't notarized; the app itself is safe (the code is public in this repo — build it yourself with `build_app.py` if you want to verify). Two ways to open it anyway:
+- **Finder**: right-click (or Control-click) `Pro-Prompt.app` → **Open** → confirm **Open** in the dialog. This only needs to be done once.
+- **Terminal**: `xattr -cr /path/to/Pro-Prompt.app` (or `xattr -cr /Applications/Pro-Prompt.app` if you moved it there), then double-click normally.
+
 **Safari shows "Safari ne parvient pas à ouvrir la page" / a WebKitErrorDomain:305 error, or the window opens blank.**
 This happens when Safari's **HTTPS-Only Mode** is set to apply to *all* websites (Safari → Settings → Advanced). In that mode Safari hard-blocks any plain `http://` navigation — including `localhost` and `127.0.0.1` — with no in-page bypass, since Pro-Prompt's local server intentionally has no TLS certificate (it never leaves your machine). Pro-Prompt already prefers Chrome/Firefox/Brave/Edge/Arc/Opera over Safari on macOS when one is installed, since none of them impose this restriction on loopback addresses. If Safari is your only browser, either:
 - Safari → Settings → Advanced → turn off "Use HTTPS-Only for all websites", or
