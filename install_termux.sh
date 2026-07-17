@@ -9,7 +9,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MAIN_SCRIPT="$SCRIPT_DIR/prompt_expert_enhance.py"
-LAUNCHER="$SCRIPT_DIR/Wild_Root_Prompt"
+LAUNCHER="$SCRIPT_DIR/WildRoot"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'

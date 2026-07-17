@@ -64,7 +64,7 @@ Wild_Root_Prompt enhances any prompt before it reaches your LLM. A **pre-process
 | **Web enrichment** | Automatic DuckDuckGo search for real-world context (toggleable, SSRF-protected) |
 | **Model auto-detection** | Lists locally installed Ollama models with numbered picker at each run |
 | **First-run guidance** | If no models installed, offers guided pull with RAM requirements |
-| **One-click launchers** | `Wild_Root_Prompt.command` (macOS) · `Wild_Root_Prompt.bat` (Windows) · `Wild_Root_Prompt` (Linux) |
+| **One-click launchers** | `WildRoot.command` (macOS) · `WildRoot.bat` (Windows) · `WildRoot` (Linux) |
 | **Cross-platform install** | `install.sh` (macOS/Linux) · `install.ps1` (Windows) · `install_termux.sh` (Android) |
 | **Zero-trust security** | Input sanitization, SSRF block, no PII in logs, random session key |
 | **Session memory** | Tracks past runs for cross-session coherence |
@@ -80,8 +80,8 @@ Wild_Root_Prompt enhances any prompt before it reaches your LLM. A **pre-process
 
 | Platform | Just double-click |
 |----------|--------|
-| **macOS** | `Install Wild_Root_Prompt.command` |
-| **Windows** | `Install Wild_Root_Prompt.bat` |
+| **macOS** | `Install WildRoot.command` |
+| **Windows** | `Install WildRoot.bat` |
 
 Both detect what's already installed and run the full setup (Ollama, Python 3, virtual environment, dependencies) automatically, ending with a one-click day-to-day launcher (see below). The Windows wrapper runs PowerShell with `-ExecutionPolicy Bypass` scoped to that single launch only — it does not change your system's script-execution policy.
 
@@ -111,9 +111,9 @@ The installer handles everything: Ollama, Python 3, virtual environment, and dep
 
 | Platform | Action |
 |----------|--------|
-| **macOS** | Double-click `Wild_Root_Prompt.command` in Finder |
-| **Windows** | Double-click `Wild_Root_Prompt.bat` |
-| **Linux** | Run `./Wild_Root_Prompt` in terminal |
+| **macOS** | Double-click `WildRoot.command` in Finder |
+| **Windows** | Double-click `WildRoot.bat` |
+| **Linux** | Run `./WildRoot` in terminal |
 | **Any** | `python3 prompt_expert_enhance.py --web` |
 
 Opens `http://localhost:7860` in your browser automatically. On macOS, if
@@ -322,9 +322,9 @@ Wild_Root_Prompt/
   install.sh                      # Installer — macOS / Linux
   install.ps1                     # Installer — Windows
   install_termux.sh               # Installer — Android / Termux
-  Wild_Root_Prompt.command              # macOS double-click launcher (web UI)
-  Wild_Root_Prompt.bat                  # Windows launcher (created by install.ps1)
-  Wild_Root_Prompt                      # Linux/macOS terminal launcher (created by install.sh)
+  WildRoot.command              # macOS double-click launcher (web UI)
+  WildRoot.bat                  # Windows launcher (created by install.ps1)
+  WildRoot                      # Linux/macOS terminal launcher (created by install.sh)
   tools/
     privacy_scan.py               # PII scanner — run before every push
   build_tools/                    # Implementation specs (reference docs)

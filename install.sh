@@ -2,7 +2,7 @@
 # ============================================================
 #  Wild_Root_Prompt Installer — macOS / Linux
 #  Installs Ollama, Python 3, creates venv, installs deps,
-#  creates Wild_Root_Prompt launcher
+#  creates WildRoot launcher
 # ============================================================
 set -e
 
@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="$SCRIPT_DIR/.venv"
 REQ_FILE="$SCRIPT_DIR/requirements.txt"
 MAIN_SCRIPT="$SCRIPT_DIR/prompt_expert_enhance.py"
-LAUNCHER="$SCRIPT_DIR/Wild_Root_Prompt"
+LAUNCHER="$SCRIPT_DIR/WildRoot"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -224,7 +224,7 @@ else
 fi
 
 # --------------------------------------------------------------
-# 6. Create Wild_Root_Prompt launcher
+# 6. Create WildRoot launcher
 # --------------------------------------------------------------
 step "6/7  Creating launcher"
 
@@ -276,7 +276,7 @@ ok "Launcher created: $LAUNCHER"
 
 # macOS: also create a .command file for Finder double-click
 if [ "$OS" = "Darwin" ]; then
-    COMMAND_LAUNCHER="$SCRIPT_DIR/Wild_Root_Prompt.command"
+    COMMAND_LAUNCHER="$SCRIPT_DIR/WildRoot.command"
     cat > "$COMMAND_LAUNCHER" << 'COMMAND_SCRIPT'
 #!/usr/bin/env bash
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -289,7 +289,7 @@ fi
 python3 prompt_expert_enhance.py --web
 COMMAND_SCRIPT
     chmod +x "$COMMAND_LAUNCHER"
-    ok "macOS Finder launcher: Wild_Root_Prompt.command (double-click to open)"
+    ok "macOS Finder launcher: WildRoot.command (double-click to open)"
 fi
 
 # --------------------------------------------------------------
@@ -310,13 +310,13 @@ if [ "$IS_TERMUX" = true ]; then
 elif [ "$OS" = "Darwin" ]; then
     echo "  Launch options:"
     echo ""
-    echo -e "  ${CYAN}Double-click:  Wild_Root_Prompt.command${NC}   ← opens web UI in browser"
-    echo -e "  ${CYAN}Terminal:      ./Wild_Root_Prompt${NC}          ← same, from terminal"
+    echo -e "  ${CYAN}Double-click:  WildRoot.command${NC}   ← opens web UI in browser"
+    echo -e "  ${CYAN}Terminal:      ./WildRoot${NC}          ← same, from terminal"
     echo -e "  ${CYAN}CLI only:      source .venv/bin/activate && python3 prompt_expert_enhance.py${NC}"
 else
     echo "  Launch options:"
     echo ""
-    echo -e "  ${CYAN}./Wild_Root_Prompt${NC}    ← opens web UI in browser"
+    echo -e "  ${CYAN}./WildRoot${NC}    ← opens web UI in browser"
     echo -e "  ${CYAN}source .venv/bin/activate && python3 prompt_expert_enhance.py${NC}  ← CLI"
 fi
 echo ""

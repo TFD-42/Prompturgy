@@ -1,7 +1,7 @@
 # ============================================================
 #  Wild_Root_Prompt Installer — Windows (PowerShell)
 #  Installs Ollama, Python 3, creates venv, installs deps,
-#  creates Wild_Root_Prompt.bat launcher
+#  creates WildRoot.bat launcher
 # ============================================================
 
 $ErrorActionPreference = "Stop"
@@ -10,7 +10,7 @@ $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $VenvDir    = Join-Path $ScriptDir ".venv"
 $ReqFile    = Join-Path $ScriptDir "requirements.txt"
 $MainScript = Join-Path $ScriptDir "prompt_expert_enhance.py"
-$Launcher   = Join-Path $ScriptDir "Wild_Root_Prompt.bat"
+$Launcher   = Join-Path $ScriptDir "WildRoot.bat"
 
 function Info($msg)  { Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
 function Ok($msg)    { Write-Host "[OK]    $msg" -ForegroundColor Green }
@@ -147,7 +147,7 @@ if (Test-Path $ReqFile) {
 }
 
 # --------------------------------------------------------------
-# 5. Create Wild_Root_Prompt.bat launcher
+# 5. Create WildRoot.bat launcher
 # --------------------------------------------------------------
 Step "5/6  Creating launcher"
 
@@ -181,7 +181,7 @@ Write-Host "============================================================"
 Write-Host ""
 Write-Host "  Launch options:"
 Write-Host ""
-Write-Host "  Double-click:  Wild_Root_Prompt.bat          <- opens web UI" -ForegroundColor Cyan
+Write-Host "  Double-click:  WildRoot.bat          <- opens web UI" -ForegroundColor Cyan
 Write-Host "  PowerShell:    .\.venv\Scripts\Activate.ps1 ; python prompt_expert_enhance.py" -ForegroundColor Cyan
 Write-Host "  CLI:           .\.venv\Scripts\Activate.ps1 ; python prompt_expert_enhance.py generate `"your task`"" -ForegroundColor Cyan
 Write-Host ""

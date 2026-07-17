@@ -3,7 +3,7 @@
 Wild_Root_Prompt — compiled app entry point.
 
 This is the script build_app.py bundles into the standalone app via
-PyInstaller. It mirrors Wild_Root_Prompt.command's day-to-day launch behavior
+PyInstaller. It mirrors WildRoot.command's day-to-day launch behavior
 (start Ollama if needed, launch the web UI, open the browser) in pure
 Python so it works identically whether run from source or as a compiled
 binary — no shell wrapper required.
