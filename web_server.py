@@ -54,9 +54,9 @@ HTML = r"""<!DOCTYPE html>
   --surface: #1a1d27;
   --surface2: #22263a;
   --border: #2e3250;
-  --accent: #6c7fff;
-  --accent2: #a78bfa;
-  --green: #4ade80;
+  --accent: #5fae82;
+  --accent2: #a8e6c1;
+  --green: #8ed9ae;
   --yellow: #fbbf24;
   --red: #f87171;
   --text: #e2e8f0;
@@ -146,7 +146,7 @@ input:checked + .slider:before { transform: translateX(18px); }
   background: var(--accent); color: white; font-size: 1rem; font-weight: 700;
   cursor: pointer; transition: all .15s; letter-spacing: .3px;
 }
-.btn-run:hover { background: #5a6ef0; transform: translateY(-1px); }
+.btn-run:hover { background: #4f9a70; transform: translateY(-1px); }
 .btn-run:active { transform: translateY(0); }
 .btn-run:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
 
@@ -227,7 +227,7 @@ input:checked + .slider:before { transform: translateX(18px); }
 .step { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--muted); white-space: nowrap; }
 .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); flex-shrink: 0; transition: background .2s; }
 .step.active { color: var(--text); font-weight: 600; }
-.step.active .step-dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(108, 127, 255, .25); }
+.step.active .step-dot { background: var(--accent); box-shadow: 0 0 0 3px rgba(95, 174, 130, .25); }
 .step.done .step-dot { background: var(--accent2); }
 .step-line { flex: 1; height: 1px; background: var(--border); margin: 0 8px; min-width: 12px; }
 
@@ -246,7 +246,7 @@ input:checked + .slider:before { transform: translateX(18px); }
 <!-- ── SIDEBAR ─────────────────────────────── -->
 <div class="sidebar">
   <div class="sidebar-header">
-    <div class="logo">Pro<span>-Prompt</span></div>
+    <div class="logo">Wild_Root<span>_Prompt</span></div>
     <div class="tagline">Local AI Prompt Enhancement &nbsp;·&nbsp; v2.3</div>
   </div>
 
