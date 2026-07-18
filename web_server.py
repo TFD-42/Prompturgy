@@ -57,6 +57,7 @@ HTML = r"""<!DOCTYPE html>
   --accent: #5fae82;
   --accent2: #a8e6c1;
   --green: #8ed9ae;
+  --root: #8b6f47;
   --yellow: #fbbf24;
   --red: #f87171;
   --text: #e2e8f0;
@@ -75,13 +76,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 /* Sidebar */
 .sidebar {
   background: var(--surface);
-  border-right: 1px solid var(--border);
+  border-right: 2px solid var(--root);
   display: flex; flex-direction: column;
   height: 100vh; overflow-y: auto; position: sticky; top: 0;
 }
 .sidebar-header {
   padding: 24px 24px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--root);
 }
 .logo { font-size: 1.25rem; font-weight: 700; color: var(--accent); letter-spacing: -.5px; }
 .logo span { color: var(--accent2); }
@@ -182,7 +183,7 @@ input:checked + .slider:before { transform: translateX(18px); }
 
 .pp-banner {
   margin: 0 28px 16px; padding: 12px 16px; border-radius: var(--radius);
-  background: var(--surface2); border: 1px solid var(--border);
+  background: var(--surface2); border: 1px solid var(--root);
   font-size: .85rem; color: var(--muted);
   display: none;
 }
@@ -204,7 +205,7 @@ input:checked + .slider:before { transform: translateX(18px); }
 /* Parallel panels */
 .dual-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 0 28px; }
 .panel-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--root); border-radius: var(--radius);
   overflow: hidden;
 }
 .panel-card .panel-header { padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: .8rem; font-weight: 600; color: var(--accent); }
