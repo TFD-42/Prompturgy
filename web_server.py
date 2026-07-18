@@ -158,8 +158,8 @@ input:checked + .slider:before { transform: translateX(18px); }
 .dot.red { background: var(--red); }
 
 /* Main area */
-.main { display: flex; flex-direction: column; }
-.main-header { padding: 20px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.main { display: flex; flex-direction: column; background: var(--surface); }
+.main-header { padding: 20px 28px; background: var(--surface2); border-bottom: 1px solid var(--root); display: flex; align-items: center; justify-content: space-between; }
 .main-header h2 { font-size: 1rem; font-weight: 600; color: var(--text); }
 .tab-bar { display: flex; gap: 4px; }
 .tab-btn {
